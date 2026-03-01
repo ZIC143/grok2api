@@ -10,12 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncGenerator, AsyncIterable, Dict, List, Optional, Union
 
-from app.core import json as jsonlib
-
 from app.core.config import get_config
 from app.core.logger import logger
 from app.core.storage import DATA_DIR
 from app.core import json as jsonlib
+from app.core.runtime import is_cloudflare
 from app.core.exceptions import AppException, ErrorType, UpstreamException
 from app.services.grok.utils.process import BaseProcessor
 from app.services.grok.utils.retry import pick_token, rate_limited
@@ -53,6 +52,13 @@ class ImageGenerationService:
         enable_nsfw: Optional[bool] = None,
         chat_format: bool = False,
     ) -> ImageGenerationResult:
+        if is_cloudflare():
+            raise AppException(
+                message="Image WebSocket is not supported on Cloudflare Workers",
+                error_type=ErrorType.SERVER.value,
+                code="ws_not_supported",
+                status_code=501,
+            )
         max_token_retries = int(get_config("retry.max_retry") or 3)
         tried_tokens: set[str] = set()
         last_error: Optional[Exception] = None

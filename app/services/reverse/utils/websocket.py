@@ -5,6 +5,8 @@ WebSocket helpers for reverse interfaces.
 import ssl
 import certifi
 import aiohttp
+
+from app.core.runtime import is_cloudflare
 from aiohttp_socks import ProxyConnector
 from typing import Mapping, Optional, Any
 from urllib.parse import urlparse
@@ -111,6 +113,8 @@ class WebSocketClient:
         Returns:
             WebSocketConnection: The WebSocket connection.
         """
+        if is_cloudflare():
+            raise RuntimeError("WebSocket is not supported on Cloudflare Workers")
         # Resolve proxy dynamically from config if not overridden
         proxy_url = self._proxy_override or get_config("proxy.base_proxy_url")
         connector, resolved_proxy = resolve_proxy(proxy_url, self._ssl_context)

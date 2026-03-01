@@ -12,6 +12,7 @@ from typing import AsyncGenerator, Dict, Optional
 import aiohttp
 
 from app.core.config import get_config
+from app.core.runtime import is_cloudflare
 from app.core.logger import logger
 from app.services.reverse.utils.headers import build_ws_headers
 from app.services.reverse.utils.websocket import WebSocketClient
@@ -100,6 +101,13 @@ class ImagineWebSocketReverse:
         enable_nsfw: bool = True,
         max_retries: Optional[int] = None,
     ) -> AsyncGenerator[Dict[str, object], None]:
+        if is_cloudflare():
+            yield {
+                "type": "error",
+                "error_code": "ws_not_supported",
+                "error": "WebSocket is not supported on Cloudflare Workers",
+            }
+            return
         retries = max(1, max_retries if max_retries is not None else 1)
         parallel_enabled = bool(get_config("image.blocked_parallel_enabled", True))
         logger.info(

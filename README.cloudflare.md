@@ -30,3 +30,4 @@ uv run pywrangler deploy
 - Storage is D1-backed via `SERVER_STORAGE_TYPE=d1`.
 - Cache stats and list use KV index; file content is served from KV (small) or R2 (large).
 - `curl_cffi` is not used on Workers; httpx fallback success rate is lower.
+- WebSocket features (image/voice) are disabled on Workers.
