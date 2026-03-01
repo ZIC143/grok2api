@@ -28,6 +28,7 @@ uv run pywrangler deploy
 ## Notes
 - `PLATFORM=cloudflare` enables httpx fallback for reverse requests.
 - Storage is D1-backed via `SERVER_STORAGE_TYPE=d1`.
-- Cache stats and list use KV index; file content is served from KV (small) or R2 (large).
+- Cache stats and list use KV index; file content is served from KV (small) or R2 (large, optional).
 - `curl_cffi` is not used on Workers; httpx fallback success rate is lower.
 - WebSocket features (image/voice) are disabled on Workers.
+ - If R2 is disabled, `/v1/files` only serves KV hits and falls back to direct asset URLs.

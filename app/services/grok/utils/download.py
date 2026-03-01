@@ -21,7 +21,7 @@ from app.core.exceptions import AppException
 from app.services.reverse.assets_download import AssetsDownloadReverse
 from app.services.reverse.utils.session import ResettableSession
 from app.services.grok.utils.locks import _get_download_semaphore, _file_lock
-from app.core.runtime import is_cloudflare
+from app.core.runtime import is_cloudflare, get_binding
 from app.services.grok.utils.download_r2 import R2DownloadService
 
 
@@ -63,6 +63,10 @@ class DownloadService:
         self, path_or_url: str, token: str, media_type: str = "image"
     ) -> str:
         if is_cloudflare():
+            if get_binding("R2_STORAGE") is None:
+                if path_or_url.startswith("http"):
+                    return path_or_url
+                return f"https://assets.grok.com/{path_or_url.lstrip('/')}"
             if self._r2 is None:
                 self._r2 = R2DownloadService()
             return await self._r2.resolve_url(path_or_url, token, media_type)
@@ -88,6 +92,9 @@ class DownloadService:
         self, url: str, token: str, image_id: str = "image"
     ) -> str:
         if is_cloudflare():
+            if get_binding("R2_STORAGE") is None:
+                final_url = await self.resolve_url(url, token, "image")
+                return f"![{image_id}]({final_url})"
             if self._r2 is None:
                 self._r2 = R2DownloadService()
             return await self._r2.render_image(url, token, image_id)
@@ -110,6 +117,12 @@ class DownloadService:
         self, video_url: str, token: str, thumbnail_url: str = ""
     ) -> str:
         if is_cloudflare():
+            if get_binding("R2_STORAGE") is None:
+                final_video_url = await self.resolve_url(video_url, token, "video")
+                if not thumbnail_url:
+                    return f"{final_video_url}\n"
+                final_thumb_url = await self.resolve_url(thumbnail_url, token, "image")
+                return f"[video]({final_video_url})\n![thumb]({final_thumb_url})"
             if self._r2 is None:
                 self._r2 = R2DownloadService()
             return await self._r2.render_video(video_url, token, thumbnail_url)
@@ -200,6 +213,8 @@ class DownloadService:
 
     async def download_file(self, file_path: str, token: str, media_type: str = "image") -> Tuple[Optional[Path], str]:
         if is_cloudflare():
+            if get_binding("R2_STORAGE") is None:
+                return None, "application/octet-stream"
             if self._r2 is None:
                 self._r2 = R2DownloadService()
             _, mime = await self._r2.download_file(file_path, token, media_type)

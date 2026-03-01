@@ -18,12 +18,13 @@
       "id": "auto"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "R2_STORAGE",
-      "bucket_name": "grok2api-data"
-    }
-  ],
+  // Optional: enable only when R2 is provisioned in the account
+  // "r2_buckets": [
+  //   {
+  //     "binding": "R2_STORAGE",
+  //     "bucket_name": "grok2api-data"
+  //   }
+  // ],
 
   "vars": {
     "PLATFORM": "cloudflare",

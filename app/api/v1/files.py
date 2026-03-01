@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, Response
 
 from app.core.logger import logger
 from app.core.storage import DATA_DIR
-from app.core.runtime import is_cloudflare
+from app.core.runtime import is_cloudflare, get_binding
 from app.services.grok.utils.cache_kv import CacheServiceKV
 from app.services.grok.utils.download_r2 import R2DownloadService
 
@@ -36,14 +36,15 @@ async def get_image(filename: str):
                 media_type=item["content_type"],
                 headers={"Cache-Control": "public, max-age=31536000, immutable"},
             )
-        r2 = R2DownloadService()
-        cached = await r2.get_cached("image", f"/{filename}")
-        if cached:
-            return Response(
-                content=cached["content"],
-                media_type=cached["content_type"],
-                headers={"Cache-Control": "public, max-age=31536000, immutable"},
-            )
+        if get_binding("R2_STORAGE") is not None:
+            r2 = R2DownloadService()
+            cached = await r2.get_cached("image", f"/{filename}")
+            if cached:
+                return Response(
+                    content=cached["content"],
+                    media_type=cached["content_type"],
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"},
+                )
         logger.warning(f"Image not found: {filename}")
         raise HTTPException(status_code=404, detail="Image not found")
     if "/" in filename:
@@ -85,14 +86,15 @@ async def get_video(filename: str):
                 media_type=item["content_type"],
                 headers={"Cache-Control": "public, max-age=31536000, immutable"},
             )
-        r2 = R2DownloadService()
-        cached = await r2.get_cached("video", f"/{filename}")
-        if cached:
-            return Response(
-                content=cached["content"],
-                media_type=cached["content_type"],
-                headers={"Cache-Control": "public, max-age=31536000, immutable"},
-            )
+        if get_binding("R2_STORAGE") is not None:
+            r2 = R2DownloadService()
+            cached = await r2.get_cached("video", f"/{filename}")
+            if cached:
+                return Response(
+                    content=cached["content"],
+                    media_type=cached["content_type"],
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"},
+                )
         logger.warning(f"Video not found: {filename}")
         raise HTTPException(status_code=404, detail="Video not found")
     if "/" in filename:
