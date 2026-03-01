@@ -1,0 +1,32 @@
+{
+  // Cloudflare Workers (Python)
+  "name": "grok2api",
+  "main": "src/entry.py",
+  "compatibility_date": "2026-02-28",
+  "compatibility_flags": ["python_workers"],
+
+  // Bindings
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "grok2api"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV_CACHE",
+      "id": "auto"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2_STORAGE",
+      "bucket_name": "grok2api-data"
+    }
+  ],
+
+  "vars": {
+    "PLATFORM": "cloudflare",
+    "SERVER_STORAGE_TYPE": "d1"
+  }
+}

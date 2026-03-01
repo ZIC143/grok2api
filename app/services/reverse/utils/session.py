@@ -5,10 +5,122 @@ Resettable session wrapper for reverse requests.
 import asyncio
 from typing import Any, Iterable, Optional
 
-from curl_cffi.requests import AsyncSession
-
 from app.core.config import get_config
 from app.core.logger import logger
+from app.core.runtime import is_cloudflare
+from app.core import json as jsonlib
+
+try:
+    from curl_cffi.requests import AsyncSession as CurlAsyncSession
+    from curl_cffi.requests.errors import RequestsError as CurlRequestsError
+except Exception:  # pragma: no cover - optional dependency
+    CurlAsyncSession = None
+    CurlRequestsError = None
+
+try:
+    import httpx
+except Exception:  # pragma: no cover - optional dependency
+    httpx = None
+
+if CurlAsyncSession is None:
+    from typing import Any as AsyncSession
+else:
+    AsyncSession = CurlAsyncSession
+
+RequestsError = CurlRequestsError or Exception
+
+
+class HttpxResponseAdapter:
+    def __init__(self, response: Any):
+        self._response = response
+
+    @property
+    def status_code(self) -> int:
+        return self._response.status_code
+
+    @property
+    def headers(self):
+        return self._response.headers
+
+    @property
+    def content(self) -> bytes:
+        return self._response.content
+
+    async def text(self) -> str:
+        if getattr(self._response, "is_stream_consumed", False):
+            return self._response.text
+        try:
+            data = await self._response.aread()
+            try:
+                return data.decode("utf-8")
+            except Exception:
+                return self._response.text
+        except Exception:
+            return self._response.text
+
+    def json(self):
+        try:
+            return self._response.json()
+        except Exception:
+            try:
+                return jsonlib.loads(self._response.content)
+            except Exception:
+                return None
+
+    async def aiter_content(self):
+        async for chunk in self._response.aiter_bytes():
+            yield chunk
+
+    async def aiter_lines(self):
+        async for line in self._response.aiter_lines():
+            yield line
+
+    async def close(self) -> None:
+        try:
+            await self._response.aclose()
+        except Exception:
+            pass
+
+
+class HttpxSession:
+    def __init__(self, **session_kwargs: Any) -> None:
+        if httpx is None:
+            raise RuntimeError("httpx is required for Cloudflare fallback")
+        self._session_kwargs = dict(session_kwargs)
+        self._client = httpx.AsyncClient()
+
+    def _strip_kwargs(self, kwargs: dict) -> dict:
+        cleaned = dict(kwargs)
+        cleaned.pop("impersonate", None)
+        cleaned.pop("proxy", None)
+        cleaned.pop("proxies", None)
+        allow_redirects = cleaned.pop("allow_redirects", None)
+        if allow_redirects is not None:
+            cleaned["follow_redirects"] = allow_redirects
+        stream = cleaned.pop("stream", None)
+        if stream is not None:
+            cleaned["stream"] = bool(stream)
+        return cleaned
+
+    async def _request(self, method: str, *args: Any, **kwargs: Any):
+        cleaned = self._strip_kwargs(kwargs)
+        response = await self._client.request(method, *args, **cleaned)
+        return HttpxResponseAdapter(response)
+
+    async def get(self, *args: Any, **kwargs: Any):
+        return await self._request("GET", *args, **kwargs)
+
+    async def post(self, *args: Any, **kwargs: Any):
+        return await self._request("POST", *args, **kwargs)
+
+    async def delete(self, *args: Any, **kwargs: Any):
+        return await self._request("DELETE", *args, **kwargs)
+
+    async def close(self) -> None:
+        try:
+            await self._client.aclose()
+        except Exception:
+            pass
 
 
 class ResettableSession:
@@ -35,7 +147,12 @@ class ResettableSession:
         )
         self._reset_requested = False
         self._reset_lock = asyncio.Lock()
-        self._session = AsyncSession(**self._session_kwargs)
+        if is_cloudflare() and httpx is not None:
+            self._session = HttpxSession(**self._session_kwargs)
+        else:
+            if CurlAsyncSession is None:
+                raise RuntimeError("curl_cffi is not available")
+            self._session = CurlAsyncSession(**self._session_kwargs)
 
     async def _maybe_reset(self) -> None:
         if not self._reset_requested:
@@ -45,7 +162,12 @@ class ResettableSession:
                 return
             self._reset_requested = False
             old_session = self._session
-            self._session = AsyncSession(**self._session_kwargs)
+            if is_cloudflare() and httpx is not None:
+                self._session = HttpxSession(**self._session_kwargs)
+            else:
+                if CurlAsyncSession is None:
+                    raise RuntimeError("curl_cffi is not available")
+                self._session = CurlAsyncSession(**self._session_kwargs)
             try:
                 await old_session.close()
             except Exception:
@@ -88,4 +210,4 @@ class ResettableSession:
         return getattr(self._session, name)
 
 
-__all__ = ["ResettableSession"]
+__all__ = ["ResettableSession", "RequestsError"]

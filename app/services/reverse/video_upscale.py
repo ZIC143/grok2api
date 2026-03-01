@@ -2,7 +2,7 @@
 Reverse interface: video upscale.
 """
 
-import orjson
+from app.core import json as jsonlib
 from typing import Any
 from curl_cffi.requests import AsyncSession
 
@@ -55,7 +55,7 @@ class VideoUpscaleReverse:
                 response = await session.post(
                     VIDEO_UPSCALE_API,
                     headers=headers,
-                    data=orjson.dumps(payload),
+                    data=jsonlib.dumps(payload),
                     timeout=timeout,
                     proxies=proxies,
                     impersonate=browser,

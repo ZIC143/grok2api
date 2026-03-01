@@ -2,7 +2,7 @@
 Reverse interface: app chat conversations.
 """
 
-import orjson
+from app.core import json as jsonlib
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 from curl_cffi.requests import AsyncSession
@@ -163,7 +163,7 @@ class AppChatReverse:
                 response = await session.post(
                     CHAT_API,
                     headers=headers,
-                    data=orjson.dumps(payload),
+                    data=jsonlib.dumps(payload),
                     timeout=timeout,
                     stream=True,
                     proxy=proxy,

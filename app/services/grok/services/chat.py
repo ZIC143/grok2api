@@ -7,8 +7,8 @@ import re
 import uuid
 from typing import Dict, List, Any, AsyncGenerator, AsyncIterable
 
-import orjson
-from curl_cffi.requests.errors import RequestsError
+from app.core import json as jsonlib
+from app.services.reverse.utils.session import RequestsError
 
 from app.core.logger import logger
 from app.core.config import get_config
@@ -61,8 +61,8 @@ def extract_tool_text(raw: str, rollout_id: str = "") -> str:
     payload = None
     if args:
         try:
-            payload = orjson.loads(args)
-        except orjson.JSONDecodeError:
+            payload = jsonlib.loads(args)
+        except jsonlib.json_error():
             payload = None
 
     label = name
@@ -199,7 +199,7 @@ class MessageExtractor:
                     arguments = fn.get("arguments", "")
                     if isinstance(arguments, (dict, list)):
                         try:
-                            arguments = orjson.dumps(arguments).decode()
+                            arguments = jsonlib.dumps(arguments).decode()
                         except Exception:
                             arguments = str(arguments)
                     if not isinstance(arguments, str):
@@ -707,7 +707,7 @@ class StreamProcessor(proc_base.BaseProcessor):
                 {"index": 0, "delta": delta, "logprobs": None, "finish_reason": finish}
             ],
         }
-        return f"data: {orjson.dumps(chunk).decode()}\n\n"
+        return f"data: {jsonlib.dumps(chunk).decode()}\n\n"
 
     async def process(self, response: AsyncIterable[bytes]) -> AsyncGenerator[str, None]:
         """Process stream response.
@@ -728,8 +728,8 @@ class StreamProcessor(proc_base.BaseProcessor):
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 resp = data.get("result", {}).get("response", {})
@@ -788,8 +788,8 @@ class StreamProcessor(proc_base.BaseProcessor):
                     json_data = card.get("jsonData")
                     if isinstance(json_data, str) and json_data.strip():
                         try:
-                            card_data = orjson.loads(json_data)
-                        except orjson.JSONDecodeError:
+                            card_data = jsonlib.loads(json_data)
+                        except jsonlib.json_error():
                             card_data = None
                         if isinstance(card_data, dict):
                             image = card_data.get("image") or {}
@@ -943,8 +943,8 @@ class CollectProcessor(proc_base.BaseProcessor):
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 resp = data.get("result", {}).get("response", {})
@@ -961,8 +961,8 @@ class CollectProcessor(proc_base.BaseProcessor):
                         if not isinstance(raw, str) or not raw.strip():
                             continue
                         try:
-                            card_data = orjson.loads(raw)
-                        except orjson.JSONDecodeError:
+                            card_data = jsonlib.loads(raw)
+                        except jsonlib.json_error():
                             continue
                         if not isinstance(card_data, dict):
                             continue

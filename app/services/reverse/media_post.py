@@ -2,7 +2,7 @@
 Reverse interface: media post create.
 """
 
-import orjson
+from app.core import json as jsonlib
 from typing import Any
 from curl_cffi.requests import AsyncSession
 
@@ -66,7 +66,7 @@ class MediaPostReverse:
                 response = await session.post(
                     MEDIA_POST_API,
                     headers=headers,
-                    data=orjson.dumps(payload),
+                    data=jsonlib.dumps(payload),
                     timeout=timeout,
                     proxies=proxies,
                     impersonate=browser,

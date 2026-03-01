@@ -10,8 +10,8 @@ import time
 from dataclasses import dataclass
 from typing import AsyncGenerator, AsyncIterable, List, Union, Any
 
-import orjson
-from curl_cffi.requests.errors import RequestsError
+from app.core import json as jsonlib
+from app.services.reverse.utils.session import RequestsError
 
 from app.core.config import get_config
 from app.core.exceptions import (
@@ -316,7 +316,7 @@ class ImageStreamProcessor(BaseProcessor):
 
     def _sse(self, event: str, data: dict) -> str:
         """Build SSE response."""
-        return f"event: {event}\ndata: {orjson.dumps(data).decode()}\n\n"
+        return f"event: {event}\ndata: {jsonlib.dumps(data).decode()}\n\n"
 
     async def process(
         self, response: AsyncIterable[bytes]
@@ -332,8 +332,8 @@ class ImageStreamProcessor(BaseProcessor):
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 resp = data.get("result", {}).get("response", {})
@@ -511,8 +511,8 @@ class ImageCollectProcessor(BaseProcessor):
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 resp = data.get("result", {}).get("response", {})

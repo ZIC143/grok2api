@@ -1,6 +1,6 @@
 import asyncio
 
-import orjson
+from app.core import json as jsonlib
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
@@ -215,11 +215,11 @@ async def batch_stream(task_id: str, request: Request):
     async def event_stream():
         queue = task.attach()
         try:
-            yield f"data: {orjson.dumps({'type': 'snapshot', **task.snapshot()}).decode()}\n\n"
+            yield f"data: {jsonlib.dumps({'type': 'snapshot', **task.snapshot()}).decode()}\n\n"
 
             final = task.final_event()
             if final:
-                yield f"data: {orjson.dumps(final).decode()}\n\n"
+                yield f"data: {jsonlib.dumps(final).decode()}\n\n"
                 return
 
             while True:
@@ -229,11 +229,11 @@ async def batch_stream(task_id: str, request: Request):
                     yield ": ping\n\n"
                     final = task.final_event()
                     if final:
-                        yield f"data: {orjson.dumps(final).decode()}\n\n"
+                        yield f"data: {jsonlib.dumps(final).decode()}\n\n"
                         return
                     continue
 
-                yield f"data: {orjson.dumps(event).decode()}\n\n"
+                yield f"data: {jsonlib.dumps(event).decode()}\n\n"
                 if event.get("type") in ("done", "error", "cancelled"):
                     return
         finally:

@@ -2,7 +2,7 @@
 Reverse interface: rate limits.
 """
 
-import orjson
+from app.core import json as jsonlib
 from typing import Any
 from curl_cffi.requests import AsyncSession
 
@@ -56,7 +56,7 @@ class RateLimitsReverse:
                 response = await session.post(
                     RATE_LIMITS_API,
                     headers=headers,
-                    data=orjson.dumps(payload),
+                    data=jsonlib.dumps(payload),
                     timeout=timeout,
                     proxies=proxies,
                     impersonate=browser,

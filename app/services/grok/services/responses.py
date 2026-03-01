@@ -6,7 +6,7 @@ import time
 import uuid
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-import orjson
+from app.core import json as jsonlib
 
 from app.services.grok.services.chat import ChatService
 from app.services.grok.utils import process as proc_base
@@ -417,7 +417,7 @@ class ResponseStreamAdapter:
         self.message_output_index: Optional[int] = None
 
     def _event(self, event_type: str, payload: Dict[str, Any]) -> str:
-        return f"event: {event_type}\ndata: {orjson.dumps(payload).decode()}\n\n"
+        return f"event: {event_type}\ndata: {jsonlib.dumps(payload).decode()}\n\n"
 
     def _response_payload(self, *, status: str, output_text: Optional[str], usage: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         tool_calls = None
@@ -776,8 +776,8 @@ class ResponsesService:
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 if data.get("object") == "chat.completion.chunk":

@@ -10,11 +10,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncGenerator, AsyncIterable, Dict, List, Optional, Union
 
-import orjson
+from app.core import json as jsonlib
 
 from app.core.config import get_config
 from app.core.logger import logger
 from app.core.storage import DATA_DIR
+from app.core import json as jsonlib
 from app.core.exceptions import AppException, ErrorType, UpstreamException
 from app.services.grok.utils.process import BaseProcessor
 from app.services.grok.utils.retry import pick_token, rate_limited
@@ -532,7 +533,7 @@ class ImageWSStreamProcessor(ImageWSBaseProcessor):
         return self._index_map[image_id]
 
     def _sse(self, event: str, data: dict) -> str:
-        return f"event: {event}\ndata: {orjson.dumps(data).decode()}\n\n"
+        return f"event: {event}\ndata: {jsonlib.dumps(data).decode()}\n\n"
 
     async def process(self, response: AsyncIterable[dict]) -> AsyncGenerator[str, None]:
         images: Dict[str, Dict] = {}

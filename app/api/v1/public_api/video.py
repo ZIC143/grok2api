@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Optional, List, Dict, Any
 
-import orjson
+from app.core import json as jsonlib
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -214,7 +214,7 @@ async def public_video_sse(request: Request, task_id: str = Query("")):
                     "error": "Video model is not available.",
                     "code": "model_not_supported",
                 }
-                yield f"data: {orjson.dumps(payload).decode()}\n\n"
+                yield f"data: {jsonlib.dumps(payload).decode()}\n\n"
                 yield "data: [DONE]\n\n"
                 return
 
@@ -249,7 +249,7 @@ async def public_video_sse(request: Request, task_id: str = Query("")):
         except Exception as e:
             logger.warning(f"Public video SSE error: {e}")
             payload = {"error": str(e), "code": "internal_error"}
-            yield f"data: {orjson.dumps(payload).decode()}\n\n"
+            yield f"data: {jsonlib.dumps(payload).decode()}\n\n"
             yield "data: [DONE]\n\n"
         finally:
             await _drop_session(task_id)

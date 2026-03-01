@@ -5,10 +5,13 @@
 import aiofiles.os
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.core.logger import logger
 from app.core.storage import DATA_DIR
+from app.core.runtime import is_cloudflare
+from app.services.grok.utils.cache_kv import CacheServiceKV
+from app.services.grok.utils.download_r2 import R2DownloadService
 
 router = APIRouter(tags=["Files"])
 
@@ -23,6 +26,26 @@ async def get_image(filename: str):
     """
     获取图片文件
     """
+    if is_cloudflare():
+        name = filename.replace("/", "-")
+        kv = CacheServiceKV()
+        item = await kv.get_item("image", name)
+        if item:
+            return Response(
+                content=item["content"],
+                media_type=item["content_type"],
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        r2 = R2DownloadService()
+        cached = await r2.get_cached("image", f"/{filename}")
+        if cached:
+            return Response(
+                content=cached["content"],
+                media_type=cached["content_type"],
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        logger.warning(f"Image not found: {filename}")
+        raise HTTPException(status_code=404, detail="Image not found")
     if "/" in filename:
         filename = filename.replace("/", "-")
 
@@ -52,6 +75,26 @@ async def get_video(filename: str):
     """
     获取视频文件
     """
+    if is_cloudflare():
+        name = filename.replace("/", "-")
+        kv = CacheServiceKV()
+        item = await kv.get_item("video", name)
+        if item:
+            return Response(
+                content=item["content"],
+                media_type=item["content_type"],
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        r2 = R2DownloadService()
+        cached = await r2.get_cached("video", f"/{filename}")
+        if cached:
+            return Response(
+                content=cached["content"],
+                media_type=cached["content_type"],
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        logger.warning(f"Video not found: {filename}")
+        raise HTTPException(status_code=404, detail="Video not found")
     if "/" in filename:
         filename = filename.replace("/", "-")
 

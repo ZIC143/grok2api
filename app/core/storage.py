@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover - non-posix platforms
     fcntl = None
 from contextlib import asynccontextmanager
 
-import orjson
+from app.core import json as jsonlib
 import aiofiles
 from app.core.logger import logger
 
@@ -41,15 +41,15 @@ LOCK_DIR = DATA_DIR / ".locks"
 
 # JSON 序列化优化助手函数
 def json_dumps(obj: Any) -> str:
-    return orjson.dumps(obj).decode("utf-8")
+    return jsonlib.dumps_str(obj)
 
 
 def json_loads(obj: str | bytes) -> Any:
-    return orjson.loads(obj)
+    return jsonlib.loads(obj)
 
 
 def json_dumps_sorted(obj: Any) -> str:
-    return orjson.dumps(obj, option=orjson.OPT_SORT_KEYS).decode("utf-8")
+    return jsonlib.dumps_sorted(obj)
 
 
 class StorageError(Exception):
@@ -274,7 +274,7 @@ class LocalStorage(BaseStorage):
 
             # 原子写操作: 写入临时文件 -> 重命名
             async with aiofiles.open(temp_path, "wb") as f:
-                await f.write(orjson.dumps(data, option=orjson.OPT_INDENT_2))
+                await f.write(jsonlib.dumps(data))
 
             # 使用 os.replace 保证原子性
             os.replace(temp_path, TOKEN_FILE)
@@ -1453,7 +1453,16 @@ class StorageFactory:
 
         logger.info(f"StorageFactory: 初始化存储后端: {storage_type}")
 
-        if storage_type == "redis":
+        if storage_type == "d1":
+            from app.core.runtime import get_binding
+            from app.core.storage_d1 import D1Storage
+
+            db = get_binding("DB")
+            if db is None:
+                raise ValueError("D1 存储需要绑定 DB")
+            cls._instance = D1Storage(db)
+
+        elif storage_type == "redis":
             if not storage_url:
                 raise ValueError("Redis 存储需要设置 SERVER_STORAGE_URL")
             cls._instance = RedisStorage(storage_url)

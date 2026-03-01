@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Optional, List, Dict, Any
 
-import orjson
+from app.core import json as jsonlib
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -53,8 +53,8 @@ def _parse_sse_chunk(chunk: str) -> Optional[Dict[str, Any]]:
     if data_str == "[DONE]":
         return None
     try:
-        payload = orjson.loads(data_str)
-    except orjson.JSONDecodeError:
+        payload = jsonlib.loads(data_str)
+    except jsonlib.json_error():
         return None
     if event and isinstance(payload, dict) and "type" not in payload:
         payload["type"] = event
@@ -139,7 +139,7 @@ async def public_imagine_ws(websocket: WebSocket):
 
     async def _send(payload: dict) -> bool:
         try:
-            await websocket.send_text(orjson.dumps(payload).decode())
+            await websocket.send_text(jsonlib.dumps(payload).decode())
             return True
         except Exception:
             return False
@@ -269,7 +269,7 @@ async def public_imagine_ws(websocket: WebSocket):
                 break
 
             try:
-                payload = orjson.loads(raw)
+                payload = jsonlib.loads(raw)
             except Exception:
                 await _send(
                     {
@@ -372,7 +372,7 @@ async def public_imagine_sse(
             model_info = ModelService.get(model_id)
             if not model_info or not model_info.is_image:
                 yield (
-                    f"data: {orjson.dumps({'type': 'error', 'message': 'Image model is not available.', 'code': 'model_not_supported'}).decode()}\n\n"
+                    f"data: {jsonlib.dumps({'type': 'error', 'message': 'Image model is not available.', 'code': 'model_not_supported'}).decode()}\n\n"
                 )
                 return
 
@@ -381,7 +381,7 @@ async def public_imagine_sse(
             run_id = uuid.uuid4().hex
 
             yield (
-                f"data: {orjson.dumps({'type': 'status', 'status': 'running', 'prompt': prompt, 'aspect_ratio': ratio, 'run_id': run_id}).decode()}\n\n"
+                f"data: {jsonlib.dumps({'type': 'status', 'status': 'running', 'prompt': prompt, 'aspect_ratio': ratio, 'run_id': run_id}).decode()}\n\n"
             )
 
             while True:
@@ -404,7 +404,7 @@ async def public_imagine_sse(
 
                     if not token:
                         yield (
-                            f"data: {orjson.dumps({'type': 'error', 'message': 'No available tokens. Please try again later.', 'code': 'rate_limit_exceeded'}).decode()}\n\n"
+                            f"data: {jsonlib.dumps({'type': 'error', 'message': 'No available tokens. Please try again later.', 'code': 'rate_limit_exceeded'}).decode()}\n\n"
                         )
                         await asyncio.sleep(2)
                         continue
@@ -428,7 +428,7 @@ async def public_imagine_sse(
                                 continue
                             if isinstance(payload, dict):
                                 payload.setdefault("run_id", run_id)
-                            yield f"data: {orjson.dumps(payload).decode()}\n\n"
+                            yield f"data: {jsonlib.dumps(payload).decode()}\n\n"
                     else:
                         images = [img for img in result.data if img and img != "error"]
                         if images:
@@ -442,22 +442,22 @@ async def public_imagine_sse(
                                     "aspect_ratio": ratio,
                                     "run_id": run_id,
                                 }
-                                yield f"data: {orjson.dumps(payload).decode()}\n\n"
+                                yield f"data: {jsonlib.dumps(payload).decode()}\n\n"
                         else:
                             yield (
-                                f"data: {orjson.dumps({'type': 'error', 'message': 'Image generation returned empty data.', 'code': 'empty_image'}).decode()}\n\n"
+                                f"data: {jsonlib.dumps({'type': 'error', 'message': 'Image generation returned empty data.', 'code': 'empty_image'}).decode()}\n\n"
                             )
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
                     logger.warning(f"Imagine SSE error: {e}")
                     yield (
-                        f"data: {orjson.dumps({'type': 'error', 'message': str(e), 'code': 'internal_error'}).decode()}\n\n"
+                        f"data: {jsonlib.dumps({'type': 'error', 'message': str(e), 'code': 'internal_error'}).decode()}\n\n"
                     )
                     await asyncio.sleep(1.5)
 
             yield (
-                f"data: {orjson.dumps({'type': 'status', 'status': 'stopped', 'run_id': run_id}).decode()}\n\n"
+                f"data: {jsonlib.dumps({'type': 'status', 'status': 'stopped', 'run_id': run_id}).decode()}\n\n"
             )
         finally:
             if task_id:

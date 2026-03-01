@@ -7,8 +7,8 @@ import uuid
 import re
 from typing import Any, AsyncGenerator, AsyncIterable, Optional
 
-import orjson
-from curl_cffi.requests.errors import RequestsError
+from app.core import json as jsonlib
+from app.services.reverse.utils.session import RequestsError
 
 from app.core.logger import logger
 from app.core.config import get_config
@@ -442,7 +442,7 @@ class VideoStreamProcessor(BaseProcessor):
                 {"index": 0, "delta": delta, "logprobs": None, "finish_reason": finish}
             ],
         }
-        return f"data: {orjson.dumps(chunk).decode()}\n\n"
+        return f"data: {jsonlib.dumps(chunk).decode()}\n\n"
 
     async def process(
         self, response: AsyncIterable[bytes]
@@ -456,8 +456,8 @@ class VideoStreamProcessor(BaseProcessor):
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 resp = data.get("result", {}).get("response", {})
@@ -618,8 +618,8 @@ class VideoCollectProcessor(BaseProcessor):
                 if not line:
                     continue
                 try:
-                    data = orjson.loads(line)
-                except orjson.JSONDecodeError:
+                    data = jsonlib.loads(line)
+                except jsonlib.json_error():
                     continue
 
                 resp = data.get("result", {}).get("response", {})

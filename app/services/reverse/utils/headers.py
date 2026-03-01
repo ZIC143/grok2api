@@ -2,7 +2,7 @@
 
 import re
 import uuid
-import orjson
+from app.core import json as jsonlib
 from urllib.parse import urlparse
 from typing import Dict, Optional
 
@@ -220,7 +220,7 @@ def build_headers(cookie_token: str, content_type: Optional[str] = None, origin:
     safe_headers = dict(headers)
     if "Cookie" in safe_headers:
         safe_headers["Cookie"] = "<redacted>"
-    logger.debug(f"Built headers: {orjson.dumps(safe_headers).decode()}")
+    logger.debug(f"Built headers: {jsonlib.dumps_str(safe_headers)}")
 
     return headers
 

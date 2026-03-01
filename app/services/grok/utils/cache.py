@@ -5,6 +5,8 @@ Local cache utilities.
 from typing import Any, Dict
 
 from app.core.storage import DATA_DIR
+from app.core.runtime import is_cloudflare
+from app.services.grok.utils.cache_kv import CacheServiceKV
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}
@@ -14,6 +16,10 @@ class CacheService:
     """Local cache service."""
 
     def __init__(self):
+        if is_cloudflare():
+            self._kv = CacheServiceKV()
+        else:
+            self._kv = None
         base_dir = DATA_DIR / "tmp"
         self.image_dir = base_dir / "image"
         self.video_dir = base_dir / "video"
@@ -26,7 +32,9 @@ class CacheService:
     def _allowed_exts(self, media_type: str):
         return IMAGE_EXTS if media_type == "image" else VIDEO_EXTS
 
-    def get_stats(self, media_type: str = "image") -> Dict[str, Any]:
+    async def get_stats(self, media_type: str = "image") -> Dict[str, Any]:
+        if self._kv is not None:
+            return await self._kv.get_stats(media_type)
         cache_dir = self._cache_dir(media_type)
         if not cache_dir.exists():
             return {"count": 0, "size_mb": 0.0}
@@ -38,9 +46,11 @@ class CacheService:
         total_size = sum(f.stat().st_size for f in files)
         return {"count": len(files), "size_mb": round(total_size / 1024 / 1024, 2)}
 
-    def list_files(
+    async def list_files(
         self, media_type: str = "image", page: int = 1, page_size: int = 1000
     ) -> Dict[str, Any]:
+        if self._kv is not None:
+            return await self._kv.list_files(media_type, page, page_size)
         cache_dir = self._cache_dir(media_type)
         if not cache_dir.exists():
             return {"total": 0, "page": page, "page_size": page_size, "items": []}
@@ -75,7 +85,9 @@ class CacheService:
 
         return {"total": total, "page": page, "page_size": page_size, "items": paged}
 
-    def delete_file(self, media_type: str, name: str) -> Dict[str, Any]:
+    async def delete_file(self, media_type: str, name: str) -> Dict[str, Any]:
+        if self._kv is not None:
+            return await self._kv.delete_file(media_type, name)
         cache_dir = self._cache_dir(media_type)
         file_path = cache_dir / name.replace("/", "-")
 
@@ -87,7 +99,9 @@ class CacheService:
                 pass
         return {"deleted": False}
 
-    def clear(self, media_type: str = "image") -> Dict[str, Any]:
+    async def clear(self, media_type: str = "image") -> Dict[str, Any]:
+        if self._kv is not None:
+            return await self._kv.clear(media_type)
         cache_dir = self._cache_dir(media_type)
         if not cache_dir.exists():
             return {"count": 0, "size_mb": 0.0}

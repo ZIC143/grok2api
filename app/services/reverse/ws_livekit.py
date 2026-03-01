@@ -2,7 +2,7 @@
 Reverse interface: LiveKit token + WebSocket.
 """
 
-import orjson
+from app.core import json as jsonlib
 from typing import Any, Dict
 from urllib.parse import urlencode
 from curl_cffi.requests import AsyncSession
@@ -57,7 +57,7 @@ class LivekitTokenReverse:
 
             # Build payload
             payload = {
-                "sessionPayload": orjson.dumps(
+                "sessionPayload": jsonlib.dumps(
                     {
                         "voice": voice,
                         "personality": personality,
@@ -79,20 +79,24 @@ class LivekitTokenReverse:
                 response = await session.post(
                     LIVEKIT_TOKEN_API,
                     headers=headers,
-                    data=orjson.dumps(payload),
+                    data=jsonlib.dumps(payload),
                     timeout=timeout,
                     proxies=proxies,
                     impersonate=browser,
                 )
 
                 if response.status_code != 200:
-                    body = response.text[:200]
+                    try:
+                        body = await response.text()
+                    except Exception:
+                        body = ""
+                    body = (body or "")[:200]
                     logger.error(
                         f"LivekitTokenReverse: Request failed, {response.status_code}, body={body}"
                     )
                     raise UpstreamException(
                         message=f"LivekitTokenReverse: Request failed, {response.status_code}",
-                        details={"status": response.status_code, "body": response.text},
+                        details={"status": response.status_code, "body": body},
                     )
 
                 return response

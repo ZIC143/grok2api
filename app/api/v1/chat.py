@@ -11,7 +11,7 @@ import uuid
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
-import orjson
+from app.core import json as jsonlib
 
 from app.services.grok.services.chat import ChatService
 from app.services.grok.services.image import ImageGenerationService
@@ -192,7 +192,7 @@ async def _safe_sse_stream(stream: AsyncIterable[str]) -> AsyncGenerator[str, No
                 "code": e.code,
             }
         }
-        yield f"event: error\ndata: {orjson.dumps(payload).decode()}\n\n"
+        yield f"event: error\ndata: {jsonlib.dumps(payload).decode()}\n\n"
         yield "data: [DONE]\n\n"
     except Exception as e:
         payload = {
@@ -202,7 +202,7 @@ async def _safe_sse_stream(stream: AsyncIterable[str]) -> AsyncGenerator[str, No
                 "code": "stream_error",
             }
         }
-        yield f"event: error\ndata: {orjson.dumps(payload).decode()}\n\n"
+        yield f"event: error\ndata: {jsonlib.dumps(payload).decode()}\n\n"
         yield "data: [DONE]\n\n"
 
 
@@ -225,7 +225,7 @@ def _streaming_error_response(exc: Exception) -> StreamingResponse:
         }
 
     async def _one_shot_error() -> AsyncGenerator[str, None]:
-        yield f"event: error\ndata: {orjson.dumps(payload).decode()}\n\n"
+        yield f"event: error\ndata: {jsonlib.dumps(payload).decode()}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

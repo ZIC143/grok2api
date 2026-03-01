@@ -3,7 +3,7 @@ Reverse interface: Imagine WebSocket image stream.
 """
 
 import asyncio
-import orjson
+from app.core import json as jsonlib
 import re
 import time
 import uuid
@@ -249,8 +249,8 @@ class ImagineWebSocketReverse:
                     if ws_msg.type == aiohttp.WSMsgType.TEXT:
                         last_activity = time.monotonic()
                         try:
-                            msg = orjson.loads(ws_msg.data)
-                        except orjson.JSONDecodeError as e:
+                            msg = jsonlib.loads(ws_msg.data)
+                        except jsonlib.json_error() as e:
                             logger.warning(f"WebSocket message decode failed: {e}")
                             continue
 

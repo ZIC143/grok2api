@@ -21,6 +21,8 @@ from app.core.exceptions import AppException
 from app.services.reverse.assets_download import AssetsDownloadReverse
 from app.services.reverse.utils.session import ResettableSession
 from app.services.grok.utils.locks import _get_download_semaphore, _file_lock
+from app.core.runtime import is_cloudflare
+from app.services.grok.utils.download_r2 import R2DownloadService
 
 
 class DownloadService:
@@ -28,6 +30,7 @@ class DownloadService:
 
     def __init__(self):
         self._session: Optional[ResettableSession] = None
+        self._r2: Optional[R2DownloadService] = None
         base_dir = DATA_DIR / "tmp"
         self.image_dir = base_dir / "image"
         self.video_dir = base_dir / "video"
@@ -37,6 +40,8 @@ class DownloadService:
 
     async def create(self) -> ResettableSession:
         """Create or reuse a session."""
+        if is_cloudflare():
+            raise RuntimeError("ResettableSession is not available on Cloudflare")
         if self._session is None:
             browser = get_config("proxy.browser")
             if browser:
@@ -50,10 +55,17 @@ class DownloadService:
         if self._session:
             await self._session.close()
             self._session = None
+        if self._r2:
+            await self._r2.close()
+            self._r2 = None
 
     async def resolve_url(
         self, path_or_url: str, token: str, media_type: str = "image"
     ) -> str:
+        if is_cloudflare():
+            if self._r2 is None:
+                self._r2 = R2DownloadService()
+            return await self._r2.resolve_url(path_or_url, token, media_type)
         asset_url = path_or_url
         path = path_or_url
         if path_or_url.startswith("http"):
@@ -75,6 +87,10 @@ class DownloadService:
     async def render_image(
         self, url: str, token: str, image_id: str = "image"
     ) -> str:
+        if is_cloudflare():
+            if self._r2 is None:
+                self._r2 = R2DownloadService()
+            return await self._r2.render_image(url, token, image_id)
         fmt = get_config("app.image_format")
         fmt = fmt.lower() if isinstance(fmt, str) else "url"
         if fmt not in ("base64", "url", "markdown"):
@@ -93,6 +109,10 @@ class DownloadService:
     async def render_video(
         self, video_url: str, token: str, thumbnail_url: str = ""
     ) -> str:
+        if is_cloudflare():
+            if self._r2 is None:
+                self._r2 = R2DownloadService()
+            return await self._r2.render_video(video_url, token, thumbnail_url)
         fmt = get_config("app.video_format")
         fmt = fmt.lower() if isinstance(fmt, str) else "url"
         if fmt not in ("url", "markdown", "html"):
@@ -179,6 +199,11 @@ class DownloadService:
         return path
 
     async def download_file(self, file_path: str, token: str, media_type: str = "image") -> Tuple[Optional[Path], str]:
+        if is_cloudflare():
+            if self._r2 is None:
+                self._r2 = R2DownloadService()
+            _, mime = await self._r2.download_file(file_path, token, media_type)
+            return None, mime
         """Download asset to local cache.
 
         Args:
