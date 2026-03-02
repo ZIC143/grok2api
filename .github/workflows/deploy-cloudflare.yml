@@ -38,54 +38,52 @@ jobs:
           set -euo pipefail
           WRANGLER=(npx -y wrangler@latest)
 
-          db_id=$(
-            DB_NAME="$DB_NAME" ${WRANGLER[@]} d1 list --json | python -c "$(printf '%s\n' \
-              'import json, sys, os' \
-              'name=os.environ.get("DB_NAME")' \
-              'data=json.load(sys.stdin)' \
-              'def iter_items(d):' \
-              '    if isinstance(d, dict) and "result" in d:' \
-              '        d=d["result"]' \
-              '    if isinstance(d, list):' \
-              '        for i in d:' \
-              '            if isinstance(i, dict):' \
-              '                yield i' \
-              '    elif isinstance(d, dict):' \
-              '        yield d' \
-              'def find_id(item):' \
-              '    for k in ("database_id","uuid","id"):' \
-              '        if item.get(k):' \
-              '            return item[k]' \
-              '    return None' \
-              'for item in iter_items(data):' \
-              '    if item.get("name")==name:' \
-              '        v=find_id(item)' \
-              '        if v:' \
-              '            print(v)' \
-              '            sys.exit(0)' \
-              'print("")' \
-            )"
-          )
+          d1_list="$(${WRANGLER[@]} d1 list 2>/dev/null || true)"
+          db_id=$(printf '%s' "$d1_list" | DB_NAME="$DB_NAME" python -c "$(printf '%s\n' \
+            'import os, re, sys' \
+            'name=os.environ.get("DB_NAME", "")' \
+            'text=sys.stdin.read()' \
+            'uuid=re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")' \
+            'for line in text.splitlines():' \
+            '    if name and name in line:' \
+            '        m=uuid.search(line)' \
+            '        if m:' \
+            '            print(m.group(0)); sys.exit(0)' \
+            '        parts=line.split()' \
+            '        if parts and parts[0]==name and len(parts)>=2:' \
+            '            print(parts[1]); sys.exit(0)' \
+            'm=uuid.search(text)' \
+            'print(m.group(0) if m else "")' \
+          )")
 
           if [ -z "$db_id" ]; then
-            db_id=$(
-              ${WRANGLER[@]} d1 create "$DB_NAME" --json | python -c "$(printf '%s\n' \
-                'import json, sys' \
-                'data=json.load(sys.stdin)' \
-                'if isinstance(data, dict) and "result" in data:' \
-                '    data=data["result"]' \
-                'def find_id(d):' \
-                '    if isinstance(d, dict):' \
-                '        for k in ("database_id","uuid","id"):' \
-                '            if d.get(k):' \
-                '                return d[k]' \
-                '    return None' \
-                'v = find_id(data)' \
-                'if not v and isinstance(data, dict) and "database" in data:' \
-                '    v = find_id(data["database"])' \
-                'print(v or "")' \
-              )"
-            )
+            d1_create="$(${WRANGLER[@]} d1 create "$DB_NAME" 2>/dev/null || true)"
+            db_id=$(printf '%s' "$d1_create" | python -c "$(printf '%s\n' \
+              'import re, sys' \
+              'text=sys.stdin.read()' \
+              'm=re.search(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", text)' \
+              'print(m.group(0) if m else "")' \
+            )")
+          fi
+
+          if [ -z "$db_id" ]; then
+            d1_list="$(${WRANGLER[@]} d1 list 2>/dev/null || true)"
+            db_id=$(printf '%s' "$d1_list" | DB_NAME="$DB_NAME" python -c "$(printf '%s\n' \
+              'import os, re, sys' \
+              'name=os.environ.get("DB_NAME", "")' \
+              'text=sys.stdin.read()' \
+              'uuid=re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")' \
+              'for line in text.splitlines():' \
+              '    if name and name in line:' \
+              '        m=uuid.search(line)' \
+              '        if m:' \
+              '            print(m.group(0)); sys.exit(0)' \
+              '        parts=line.split()' \
+              '        if parts and parts[0]==name and len(parts)>=2:' \
+              '            print(parts[1]); sys.exit(0)' \
+              'm=uuid.search(text)' \
+              'print(m.group(0) if m else "")' \
+            )")
           fi
 
           if [ -z "$db_id" ]; then
@@ -93,22 +91,19 @@ jobs:
             exit 1
           fi
 
-          r2_exists=$(
-            R2_NAME="$R2_NAME" ${WRANGLER[@]} r2 bucket list --json | python -c "$(printf '%s\n' \
-              'import json, sys, os' \
-              'name=os.environ.get("R2_NAME")' \
-              'data=json.load(sys.stdin)' \
-              'if isinstance(data, dict) and "result" in data:' \
-              '    data=data["result"]' \
-              'exists=False' \
-              'if isinstance(data, list):' \
-              '    for item in data:' \
-              '        if isinstance(item, dict) and item.get("name")==name:' \
-              '            exists=True' \
-              '            break' \
-              'print("1" if exists else "")' \
-            )"
-          )
+          r2_list="$(${WRANGLER[@]} r2 bucket list 2>/dev/null || true)"
+          r2_exists=$(printf '%s' "$r2_list" | R2_NAME="$R2_NAME" python -c "$(printf '%s\n' \
+            'import os, sys' \
+            'name=os.environ.get("R2_NAME", "")' \
+            'text=sys.stdin.read()' \
+            'for line in text.splitlines():' \
+            '    if line.strip()==name:' \
+            '        print("1"); sys.exit(0)' \
+            '    parts=line.split()' \
+            '    if parts and parts[0]==name:' \
+            '        print("1"); sys.exit(0)' \
+            'print("")' \
+          )")
 
           if [ -z "$r2_exists" ]; then
             ${WRANGLER[@]} r2 bucket create "$R2_NAME"
