@@ -135,49 +135,44 @@ jobs:
             'db_id = os.environ["DB_ID"]' \
             'r2_name = os.environ["R2_NAME"]' \
             'r2_enabled = os.environ.get("R2_ENABLED", "1") == "1"' \
-            'm = re.search(r"(\"d1_databases\"\\s*:\\s*\\[[\\s\\S]*?\\])", text)' \
+            'd1_pat = re.compile("\"d1_databases\"\\s*:\\s*\\[.*?\\]", re.S)' \
+            'm = d1_pat.search(text)' \
             'if not m:' \
             '    raise SystemExit("d1_databases block not found")' \
-            'block = m.group(1)' \
-            'obj_pat = r"\\{\\s*\"binding\"\\s*:\\s*\"DB\"[\\s\\S]*?\\}"' \
-            'om = re.search(obj_pat, block)' \
+            'block = m.group(0)' \
+            'obj_pat = re.compile("\\{[^{}]*\"binding\"\\s*:\\s*\"DB\"[^{}]*\\}", re.S)' \
+            'om = obj_pat.search(block)' \
             'if not om:' \
             '    raise SystemExit("DB binding not found in d1_databases")' \
             'obj = om.group(0)' \
-            'if re.search(r"(\"database_id\"\\s*:\\s*\")[^\"]*(\")", obj):' \
+            'if "\"database_id\"" in obj:' \
             '    obj = re.sub(r"(\"database_id\"\\s*:\\s*\")[^\"]*(\")", r"\\1"+db_id+r"\\2", obj)' \
             'else:' \
-            '    obj = re.sub(r"(\"database_name\"\\s*:\\s*\"[^\"]*\")", r"\\1,\\n      \"database_id\": \""+db_id+"\"", obj)' \
-            'block = block[:om.start()] + obj + block[om.end():]' \
-            'text = text[:m.start(1)] + block + text[m.end(1):]' \
-            'r2_pat = r"(\"r2_buckets\"\\s*:\\s*\\[[\\s\\S]*?\\]\\s*,?)"' \
+            '    obj = re.sub(r"(\"database_name\"\\s*:\\s*\"[^\"]*\")", r"\\1,\\n      \\\"database_id\\\": \\\""+db_id+"\\\"", obj)' \
+            'block_new = block[:om.start()] + obj + block[om.end():]' \
+            'text = text[:m.start()] + block_new + text[m.end():]' \
+            'r2_pat = re.compile("\\n\\s*\"r2_buckets\"\\s*:\\s*\\[.*?\\]\\s*,?", re.S)' \
             'if not r2_enabled:' \
-            '    text = re.sub(r2_pat, "", text, count=1)' \
+            '    text = re.sub(r2_pat, "\n", text, count=1)' \
             'else:' \
-            '    r2_block = "\\n".join([' \
-            '        "  \\\"r2_buckets\\\": [",' \
-            '        "    {",' \
-            '        "      \\\"binding\\\": \\\"R2_STORAGE\\\"," ,' \
-            '        f"      \\\"bucket_name\\\": \\\"{r2_name}\\\"",' \
-            '        "    }",' \
-            '        "  ],",' \
-            '    ])' \
-            '    def update_r2_block(b):' \
+            '    rb = r2_pat.search(text)' \
+            '    if rb:' \
+            '        b = rb.group(0)' \
             '        b = re.sub(r"(\"bucket_name\"\\s*:\\s*\")[^\"]*(\")", r"\\1"+r2_name+r"\\2", b)' \
-            '        if not re.search(r"\"binding\"\\s*:", b):' \
+            '        if "\"binding\"" not in b:' \
             '            b = re.sub(r"\\{\\s*", "{\\n      \\\"binding\\\": \\\"R2_STORAGE\\\",\\n      ", b, count=1)' \
-            '        return b' \
-            '    if re.search(r2_pat, text):' \
-            '        text = re.sub(r2_pat, lambda m: update_r2_block(m.group(0)), text, count=1)' \
+            '        text = text[:rb.start()] + b + text[rb.end():]' \
             '    else:' \
-            '        inserted = [False]' \
-            '        kv_pat = r"(\"kv_namespaces\"\\s*:\\s*\\[[\\s\\S]*?\\]\\s*,)"' \
-            '        def ins(m):' \
-            '            inserted[0] = True' \
-            '            return m.group(1) + "\\n\\n" + r2_block' \
-            '        text = re.sub(kv_pat, ins, text, count=1)' \
-            '        if not inserted[0]:' \
-            '            text = re.sub(r"(\"vars\"\\s*:\\s*\\{)", r2_block + "\\n\\n  " + r"\\1", text, count=1)' \
+            '        r2_block = "\\n  \\\"r2_buckets\\\": [\\n    {\\n      \\\"binding\\\": \\\"R2_STORAGE\\\",\\n      \\\"bucket_name\\\": \\\"" + r2_name + "\\\"\\n    }\\n  ],\\n"' \
+            '        kv_pat = re.compile("(\"kv_namespaces\"\\s*:\\s*\\[.*?\\]\\s*,)", re.S)' \
+            '        km = kv_pat.search(text)' \
+            '        if km:' \
+            '            text = text[:km.end()] + r2_block + text[km.end():]' \
+            '        else:' \
+            '            vars_pat = re.compile("(\"vars\"\\s*:\\s*\\{)", re.S)' \
+            '            vm = vars_pat.search(text)' \
+            '            if vm:' \
+            '                text = text[:vm.start()] + r2_block + text[vm.start():]' \
             'path.write_text(text, encoding="utf-8")' \
           )"
         shell: bash
