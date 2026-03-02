@@ -1,7 +1,7 @@
 {
   // Cloudflare Workers (Python)
   "name": "grok2api",
-  "main": "src/entry.py",
+  "main": "entry.py",
   "compatibility_date": "2026-02-28",
   "compatibility_flags": ["python_workers"],
 
