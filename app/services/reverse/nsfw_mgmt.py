@@ -2,7 +2,7 @@
 Reverse interface: NSFW feature controls (gRPC-Web).
 """
 
-from curl_cffi.requests import AsyncSession
+from app.services.reverse.utils.session import AsyncSession
 
 from app.core.logger import logger
 from app.core.config import get_config

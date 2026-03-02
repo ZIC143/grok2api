@@ -5,7 +5,7 @@ Reverse interface: LiveKit token + WebSocket.
 from app.core import json as jsonlib
 from typing import Any, Dict
 from urllib.parse import urlencode
-from curl_cffi.requests import AsyncSession
+from app.services.reverse.utils.session import AsyncSession
 
 from app.core.logger import logger
 from app.core.config import get_config
