@@ -91,31 +91,50 @@ jobs:
             exit 1
           fi
 
-          r2_list="$(${WRANGLER[@]} r2 bucket list 2>/dev/null || true)"
-          r2_exists=$(printf '%s' "$r2_list" | R2_NAME="$R2_NAME" python -c "$(printf '%s\n' \
-            'import os, sys' \
-            'name=os.environ.get("R2_NAME", "")' \
-            'text=sys.stdin.read()' \
-            'for line in text.splitlines():' \
-            '    if line.strip()==name:' \
-            '        print("1"); sys.exit(0)' \
-            '    parts=line.split()' \
-            '    if parts and parts[0]==name:' \
-            '        print("1"); sys.exit(0)' \
-            'print("")' \
-          )")
-
-          if [ -z "$r2_exists" ]; then
-            ${WRANGLER[@]} r2 bucket create "$R2_NAME"
+          r2_enabled="1"
+          set +e
+          r2_list="$(${WRANGLER[@]} r2 bucket list 2>&1)"
+          r2_list_code=$?
+          set -e
+          if [ $r2_list_code -ne 0 ] || echo "$r2_list" | grep -qi "10042\|enable R2"; then
+            r2_enabled="0"
           fi
 
-          DB_ID="$db_id" R2_NAME="$R2_NAME" python -c "$(printf '%s\n' \
+          r2_exists=""
+          if [ "$r2_enabled" = "1" ]; then
+            r2_exists=$(printf '%s' "$r2_list" | R2_NAME="$R2_NAME" python -c "$(printf '%s\n' \
+              'import os, sys' \
+              'name=os.environ.get("R2_NAME", "")' \
+              'text=sys.stdin.read()' \
+              'for line in text.splitlines():' \
+              '    if line.strip()==name:' \
+              '        print("1"); sys.exit(0)' \
+              '    parts=line.split()' \
+              '    if parts and parts[0]==name:' \
+              '        print("1"); sys.exit(0)' \
+              'print("")' \
+            )")
+          fi
+
+          if [ "$r2_enabled" = "1" ] && [ -z "$r2_exists" ]; then
+            set +e
+            r2_create_out="$(${WRANGLER[@]} r2 bucket create "$R2_NAME" 2>&1)"
+            r2_create_code=$?
+            set -e
+            if [ $r2_create_code -ne 0 ]; then
+              echo "$r2_create_out" >&2
+              r2_enabled="0"
+            fi
+          fi
+
+          DB_ID="$db_id" R2_NAME="$R2_NAME" R2_ENABLED="$r2_enabled" python -c "$(printf '%s\n' \
             'import os, re' \
             'from pathlib import Path' \
             'path = Path("wrangler.jsonc")' \
             'text = path.read_text(encoding="utf-8")' \
             'db_id = os.environ["DB_ID"]' \
             'r2_name = os.environ["R2_NAME"]' \
+            'r2_enabled = os.environ.get("R2_ENABLED", "1") == "1"' \
             'm = re.search(r"(\"d1_databases\"\\s*:\\s*\\[[\\s\\S]*?\\])", text)' \
             'if not m:' \
             '    raise SystemExit("d1_databases block not found")' \
@@ -131,32 +150,35 @@ jobs:
             '    obj = re.sub(r"(\"database_name\"\\s*:\\s*\"[^\"]*\")", r"\\1,\\n      \"database_id\": \""+db_id+"\"", obj)' \
             'block = block[:om.start()] + obj + block[om.end():]' \
             'text = text[:m.start(1)] + block + text[m.end(1):]' \
-            'r2_block = "\\n".join([' \
-            '    "  \\\"r2_buckets\\\": [",' \
-            '    "    {",' \
-            '    "      \\\"binding\\\": \\\"R2_STORAGE\\\"," ,' \
-            '    f"      \\\"bucket_name\\\": \\\"{r2_name}\\\"",' \
-            '    "    }",' \
-            '    "  ],",' \
-            '])' \
-            'def update_r2_block(b):' \
-            '    b = re.sub(r"(\"bucket_name\"\\s*:\\s*\")[^\"]*(\")", r"\\1"+r2_name+r"\\2", b)' \
-            '    if not re.search(r"\"binding\"\\s*:", b):' \
-            '        b = re.sub(r"\\{\\s*", "{\\n      \\\"binding\\\": \\\"R2_STORAGE\\\",\\n      ", b, count=1)' \
-            '    return b' \
             'r2_pat = r"(\"r2_buckets\"\\s*:\\s*\\[[\\s\\S]*?\\]\\s*,?)"' \
-            'if re.search(r2_pat, text):' \
-            '    text = re.sub(r2_pat, lambda m: update_r2_block(m.group(0)), text, count=1)' \
+            'if not r2_enabled:' \
+            '    text = re.sub(r2_pat, "", text, count=1)' \
             'else:' \
-            '    inserted = False' \
-            '    kv_pat = r"(\"kv_namespaces\"\\s*:\\s*\\[[\\s\\S]*?\\]\\s*,)"' \
-            '    def ins(m):' \
-            '        nonlocal inserted' \
-            '        inserted = True' \
-            '        return m.group(1) + "\\n\\n" + r2_block' \
-            '    text = re.sub(kv_pat, ins, text, count=1)' \
-            '    if not inserted:' \
-            '        text = re.sub(r"(\"vars\"\\s*:\\s*\\{)", r2_block + "\\n\\n  " + r"\\1", text, count=1)' \
+            '    r2_block = "\\n".join([' \
+            '        "  \\\"r2_buckets\\\": [",' \
+            '        "    {",' \
+            '        "      \\\"binding\\\": \\\"R2_STORAGE\\\"," ,' \
+            '        f"      \\\"bucket_name\\\": \\\"{r2_name}\\\"",' \
+            '        "    }",' \
+            '        "  ],",' \
+            '    ])' \
+            '    def update_r2_block(b):' \
+            '        b = re.sub(r"(\"bucket_name\"\\s*:\\s*\")[^\"]*(\")", r"\\1"+r2_name+r"\\2", b)' \
+            '        if not re.search(r"\"binding\"\\s*:", b):' \
+            '            b = re.sub(r"\\{\\s*", "{\\n      \\\"binding\\\": \\\"R2_STORAGE\\\",\\n      ", b, count=1)' \
+            '        return b' \
+            '    if re.search(r2_pat, text):' \
+            '        text = re.sub(r2_pat, lambda m: update_r2_block(m.group(0)), text, count=1)' \
+            '    else:' \
+            '        inserted = False' \
+            '        kv_pat = r"(\"kv_namespaces\"\\s*:\\s*\\[[\\s\\S]*?\\]\\s*,)"' \
+            '        def ins(m):' \
+            '            nonlocal inserted' \
+            '            inserted = True' \
+            '            return m.group(1) + "\\n\\n" + r2_block' \
+            '        text = re.sub(kv_pat, ins, text, count=1)' \
+            '        if not inserted:' \
+            '            text = re.sub(r"(\"vars\"\\s*:\\s*\\{)", r2_block + "\\n\\n  " + r"\\1", text, count=1)' \
             'path.write_text(text, encoding="utf-8")' \
           )"
         shell: bash
