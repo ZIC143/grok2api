@@ -90,6 +90,10 @@ jobs:
             echo "Failed to resolve D1 database id" >&2
             exit 1
           fi
+          if ! echo "$db_id" | grep -Eq "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"; then
+            echo "Invalid D1 database id: $db_id" >&2
+            exit 1
+          fi
 
           r2_enabled="1"
           set +e
@@ -135,6 +139,7 @@ jobs:
             'db_id = os.environ["DB_ID"]' \
             'r2_name = os.environ["R2_NAME"]' \
             'r2_enabled = os.environ.get("R2_ENABLED", "1") == "1"' \
+            'text = text.replace("D1_DATABASE_ID", db_id)' \
             'd1_pat = re.compile("\"d1_databases\"\\s*:\\s*\\[.*?\\]", re.S)' \
             'm = d1_pat.search(text)' \
             'if not m:' \
