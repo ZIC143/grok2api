@@ -9,22 +9,23 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "grok2api"
+      "database_name": "grok2api",
+      "database_id": "D1_DATABASE_ID"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "KV_CACHE",
-      "id": "auto"
+      "id": "KV_CACHE_ID",
+      "preview_id": "KV_CACHE_PREVIEW_ID"
     }
   ],
-  // Optional: enable only when R2 is provisioned in the account
-  // "r2_buckets": [
-  //   {
-  //     "binding": "R2_STORAGE",
-  //     "bucket_name": "grok2api-data"
-  //   }
-  // ],
+  "r2_buckets": [
+    {
+      "binding": "R2_STORAGE",
+      "bucket_name": "grok2api-data"
+    }
+  ],
 
   "vars": {
     "PLATFORM": "cloudflare",
