@@ -222,7 +222,7 @@ jobs:
             exit 1
           fi
 
-          python -c "$(printf '%s\n' \
+          KV_ID="$KV_ID" KV_PREVIEW_ID="$KV_PREVIEW_ID" python -c "$(printf '%s\n' \
             'from pathlib import Path' \
             'import os' \
             'path = Path("wrangler.jsonc")' \
