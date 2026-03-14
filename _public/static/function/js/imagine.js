@@ -128,12 +128,7 @@
   }
 
   function setStatus(state, text) {
-    if (!statusText) return;
-    statusText.textContent = text || t('common.notConnected');
-    statusText.classList.remove('connected', 'connecting', 'error');
-    if (state) {
-      statusText.classList.add(state);
-    }
+    window.AdminAuth.setFunctionStatus(statusText, state, text, t('common.notConnected'));
   }
 
   function setButtons(connected) {

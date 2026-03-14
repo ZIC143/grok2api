@@ -258,6 +258,15 @@ async function initializeFunctionScene(options = {}) {
   });
 }
 
+function setFunctionStatus(statusElement, state, text, fallbackText) {
+  if (!statusElement) return;
+  statusElement.textContent = text || fallbackText || '';
+  statusElement.classList.remove('connected', 'connecting', 'error');
+  if (state) {
+    statusElement.classList.add(state);
+  }
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -268,6 +277,7 @@ window.AdminAuth = {
   getFunctionAccessState,
   initializeFunctionPage,
   initializeFunctionScene,
+  setFunctionStatus,
   buildAuthHeaders,
   logout,
   functionLogout,

@@ -539,10 +539,7 @@
   }
 
   function setStatus(state, text) {
-    if (!statusText) return;
-    statusText.textContent = text || t('chat.ready');
-    statusText.classList.remove('connected', 'connecting', 'error');
-    if (state) statusText.classList.add(state);
+    window.AdminAuth.setFunctionStatus(statusText, state, text, t('chat.ready'));
   }
 
   function setSendingState(sending) {

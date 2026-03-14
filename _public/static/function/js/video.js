@@ -146,12 +146,7 @@
   }
 
   function setStatus(state, text) {
-    if (!statusText) return;
-    statusText.textContent = text;
-    statusText.classList.remove('connected', 'connecting', 'error');
-    if (state) {
-      statusText.classList.add(state);
-    }
+    window.AdminAuth.setFunctionStatus(statusText, state, text, '');
   }
 
   function setButtons(running) {
