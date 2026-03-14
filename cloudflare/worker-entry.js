@@ -59,6 +59,10 @@ function getModelCatalogResponse() {
   }));
 }
 
+function getModelsByMode(mode) {
+  return getModelCatalogResponse().filter((model) => model.metadata?.mode === mode);
+}
+
 function getConfigSummary(config) {
   return {
     sections: Object.keys(config),
@@ -83,6 +87,124 @@ function getConfigSummary(config) {
       super_refresh_interval_hours: config.token?.super_refresh_interval_hours,
     },
     runtime: config.runtime || {},
+  };
+}
+
+function getFunctionAccessSummary(config) {
+  const functionEnabled = Boolean(config.app?.function_enabled);
+  const functionKey = String(config.app?.function_key || '').trim();
+  return {
+    enabled: functionEnabled,
+    auth_required: Boolean(functionKey),
+    public_access: functionEnabled && !functionKey,
+  };
+}
+
+function getChatInitConfig(config) {
+  const chatModels = getModelsByMode('chat')
+    .map((model) => model.id)
+    .filter((id) => !String(id).includes('video'));
+  const defaultModel = chatModels.includes('grok-4.20-beta')
+    ? 'grok-4.20-beta'
+    : chatModels[chatModels.length - 1] || 'grok-4.20-beta';
+
+  return {
+    status: 'ok',
+    scene: 'chat',
+    access: getFunctionAccessSummary(config),
+    defaults: {
+      model: defaultModel,
+      temperature: 0.8,
+      top_p: 0.95,
+      stream: Boolean(config.app?.stream),
+      thinking: Boolean(config.app?.thinking),
+      disable_memory: Boolean(config.app?.disable_memory),
+      temporary: Boolean(config.app?.temporary),
+      custom_instruction: String(config.app?.custom_instruction || ''),
+      max_context_messages: 5,
+    },
+    models: {
+      preferred: defaultModel,
+      available: chatModels,
+    },
+    capabilities: {
+      attachments: true,
+      multi_session: true,
+      stream_request_supported: false,
+      worker_bridge_mode: 'init-only',
+    },
+  };
+}
+
+function getImagineInitConfig(config) {
+  return {
+    status: 'ok',
+    scene: 'imagine',
+    access: getFunctionAccessSummary(config),
+    final_min_bytes: Number(config.image?.final_min_bytes || 0),
+    medium_min_bytes: Number(config.image?.medium_min_bytes || 0),
+    nsfw: Boolean(config.image?.nsfw),
+    defaults: {
+      aspect_ratio: '2:3',
+      nsfw: Boolean(config.image?.nsfw),
+      response_format: String(config.imagine_fast?.response_format || 'url'),
+      size: String(config.imagine_fast?.size || '1024x1024'),
+      n: Number(config.imagine_fast?.n || 1),
+      blocked_parallel_enabled: Boolean(config.image?.blocked_parallel_enabled),
+      blocked_parallel_attempts: Number(config.image?.blocked_parallel_attempts || 0),
+    },
+    options: {
+      aspect_ratios: ['1:1', '2:3', '3:2', '9:16', '16:9'],
+      response_formats: ['url', 'b64_json', 'base64'],
+      sizes: ['1024x1024', '1280x720', '720x1280', '1792x1024', '1024x1792'],
+    },
+    capabilities: {
+      ws_supported: false,
+      sse_supported: false,
+      start_supported: false,
+      worker_bridge_mode: 'init-only',
+    },
+  };
+}
+
+function getVideoInitConfig(config) {
+  return {
+    status: 'ok',
+    scene: 'video',
+    access: getFunctionAccessSummary(config),
+    defaults: {
+      aspect_ratio: '3:2',
+      video_length: 6,
+      resolution_name: '480p',
+      preset: 'normal',
+      reasoning_effort: 'low',
+      image_url_required: false,
+    },
+    options: {
+      aspect_ratios: ['16:9', '9:16', '3:2', '2:3', '1:1'],
+      video_lengths: [6, 10, 15, 20, 30],
+      resolution_names: ['480p', '720p'],
+      presets: ['fun', 'normal', 'spicy', 'custom'],
+      reasoning_efforts: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
+    },
+    models: {
+      available: getModelsByMode('video').map((model) => model.id),
+    },
+    capabilities: {
+      sse_supported: false,
+      start_supported: false,
+      worker_bridge_mode: 'init-only',
+    },
+  };
+}
+
+function getFunctionBootstrapConfig(config) {
+  return {
+    status: 'ok',
+    access: getFunctionAccessSummary(config),
+    chat: getChatInitConfig(config),
+    imagine: getImagineInitConfig(config),
+    video: getVideoInitConfig(config),
   };
 }
 
@@ -768,6 +890,10 @@ async function getOpenAIMetadata(env) {
       admin_verify: '/v1/admin/verify',
       function_verify: '/v1/function/verify',
       admin_config: '/v1/admin/config',
+      function_bootstrap: '/v1/function/bootstrap',
+      function_chat_config: '/v1/function/chat/config',
+      function_imagine_config: '/v1/function/imagine/config',
+      function_video_config: '/v1/function/video/config',
       runtime_status: '/v1/runtime/status',
       runtime_checks: '/v1/runtime/checks',
       runtime_storage: '/v1/runtime/storage',
@@ -780,6 +906,10 @@ async function getOpenAIMetadata(env) {
       admin_verify: true,
       function_verify: true,
       admin_config: true,
+      function_bootstrap: true,
+      function_chat_config: true,
+      function_imagine_config: true,
+      function_video_config: true,
       runtime_status: true,
       runtime_checks: true,
       runtime_storage: true,
@@ -828,7 +958,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -847,6 +977,26 @@ export default {
         return auth.response;
       }
       return json({ status: 'success' });
+    }
+
+    if (url.pathname === '/v1/function/bootstrap' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getFunctionBootstrapConfig(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/chat/config' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getChatInitConfig(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/imagine/config' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getImagineInitConfig(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/video/config' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getVideoInitConfig(runtimeConfig.config));
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {

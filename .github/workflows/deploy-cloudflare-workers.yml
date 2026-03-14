@@ -603,6 +603,102 @@ jobs:
             -H "Authorization: Bearer phase-a-function-key" \
             "$verify_url"
 
+      - name: Function bootstrap read check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          bootstrap_url="${worker_url}/v1/function/bootstrap"
+          echo "Checking ${bootstrap_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$bootstrap_url"
+
+      - name: Function chat config read check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          chat_config_url="${worker_url}/v1/function/chat/config"
+          echo "Checking ${chat_config_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$chat_config_url"
+
+      - name: Function imagine config read check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          imagine_config_url="${worker_url}/v1/function/imagine/config"
+          echo "Checking ${imagine_config_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$imagine_config_url"
+
+      - name: Function video config read check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          video_config_url="${worker_url}/v1/function/video/config"
+          echo "Checking ${video_config_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$video_config_url"
+
       - name: Runtime status bridge check
         shell: bash
         run: |
