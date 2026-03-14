@@ -1,0 +1,90 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment name
+        required: false
+        default: production
+      worker_name:
+        description: Override worker name
+        required: false
+        default: ""
+      d1_name:
+        description: Override D1 database name
+        required: false
+        default: ""
+      kv_name:
+        description: Override KV namespace name
+        required: false
+        default: ""
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+      CF_WORKER_NAME: ${{ github.event.inputs.worker_name || format('grok2api-{0}', github.repository_owner) }}
+      CF_D1_NAME: ${{ github.event.inputs.d1_name || format('grok2api-{0}-db', github.repository_owner) }}
+      CF_KV_NAME: ${{ github.event.inputs.kv_name || format('grok2api-{0}-kv', github.repository_owner) }}
+      CF_WRANGLER_TEMPLATE: cloudflare/wrangler.cloudflare.jsonc
+      CF_WRANGLER_OUTPUT: .wrangler.generated.jsonc
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          test -n "${CLOUDFLARE_API_TOKEN}"
+
+      - name: Install Wrangler CLI
+        run: npm install --global wrangler@4
+
+      - name: Prepare Cloudflare resources
+        shell: bash
+        run: |
+          python scripts/cf_prepare_resources.py --output cloudflare/resources.json
+
+      - name: Render Wrangler config
+        shell: bash
+        run: |
+          python scripts/cf_render_wrangler.py \
+            --template "${CF_WRANGLER_TEMPLATE}" \
+            --resources cloudflare/resources.json \
+            --output "${CF_WRANGLER_OUTPUT}"
+
+      - name: Show rendered Wrangler config path
+        shell: bash
+        run: |
+          echo "Using Wrangler config: ${CF_WRANGLER_OUTPUT}"
+
+      - name: Deploy Worker
+        shell: bash
+        run: |
+          wrangler deploy --config "${CF_WRANGLER_OUTPUT}"
+
+      - name: Post deploy summary
+        shell: bash
+        run: |
+          python scripts/cf_post_deploy.py \
+            --resources cloudflare/resources.json \
+            --worker-name "${CF_WORKER_NAME}" \
+            --environment "${CF_ENVIRONMENT}"

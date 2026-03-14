@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__CF_WORKER_NAME__",
+  "main": "cloudflare/worker-entry.js",
+  "compatibility_date": "2026-03-14",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "__CF_D1_NAME__",
+      "database_id": "__CF_D1_ID__"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV_CACHE",
+      "id": "__CF_KV_ID__"
+    }
+  ],
+  "vars": {
+    "APP_ENV": "__CF_ENVIRONMENT__"
+  }
+}
