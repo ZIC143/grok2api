@@ -57,8 +57,10 @@ async function loadFunctionHeader() {
     if (logoutBtn) {
       logoutBtn.classList.add('hidden');
       try {
-        const verify = await fetch('/v1/function/verify', { method: 'GET' });
-        if (verify.status === 401) {
+        const accessState = window.AdminAuth && typeof window.AdminAuth.getFunctionAccessState === 'function'
+          ? await window.AdminAuth.getFunctionAccessState()
+          : { requiresLogin: false };
+        if (accessState.requiresLogin) {
           logoutBtn.classList.remove('hidden');
         }
       } catch (e) {

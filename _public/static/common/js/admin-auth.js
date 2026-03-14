@@ -206,9 +206,35 @@ async function ensureFunctionKey() {
   }
 }
 
+async function getFunctionAccessState() {
+  try {
+    const authHeader = await ensureFunctionKey();
+    return {
+      verified: authHeader !== null,
+      requiresLogin: authHeader === null,
+      authHeader,
+    };
+  } catch (e) {
+    return {
+      verified: false,
+      requiresLogin: true,
+      authHeader: null,
+    };
+  }
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
+
+window.AdminAuth = {
+  ensureAdminKey,
+  ensureFunctionKey,
+  getFunctionAccessState,
+  buildAuthHeaders,
+  logout,
+  functionLogout,
+};
 
 function logout() {
   clearStoredAppKey();
