@@ -1,6 +1,6 @@
 <nav class="bg-[var(--bg)]/80 backdrop-blur-md fixed top-0 left-0 right-0 z-10">
   <div class="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-6 function-nav-main">
       <div class="flex items-center gap-2">
         <a href="https://github.com/chenyme/grok2api" target="_blank" rel="noopener"
           class="brand-link font-semibold tracking-tight hover:text-black">
@@ -19,7 +19,7 @@
       <a href="/video" class="nav-link text-sm" data-nav="/video" data-i18n="nav.video">Video 视频生成</a>
       <a href="/voice" class="nav-link text-sm" data-nav="/voice" data-i18n="nav.voice">LiveKit 陪聊</a>
     </div>
-    <div class="nav-actions">
+    <div class="nav-actions function-nav-actions">
       <div id="function-summary-badges" class="nav-summary-badges" aria-live="polite"></div>
       <button id="lang-toggle" type="button" class="nav-action-btn" onclick="I18n.toggleLang()">EN</button>
       <a href="/admin/login" class="nav-action-btn" data-i18n="nav.adminPanel">管理后台</a>
@@ -27,3 +27,4 @@
     </div>
   </div>
 </nav>
+<div id="function-status-banner" class="function-status-banner hidden" aria-live="polite"></div>

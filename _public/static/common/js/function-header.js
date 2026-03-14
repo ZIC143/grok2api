@@ -75,6 +75,22 @@ function applyFunctionManifestSummary(container, manifest) {
       badgesHost.appendChild(el);
     });
   }
+
+  const banner = document.getElementById('function-status-banner');
+  if (banner) {
+    const disabledScenes = Object.entries(manifest.scenes)
+      .filter(([, scene]) => scene && scene.access && scene.access.enabled === false)
+      .map(([sceneName, scene]) => (scene.ui && scene.ui.title) ? scene.ui.title : sceneName);
+    if (disabledScenes.length) {
+      banner.classList.remove('hidden');
+      banner.textContent = `当前不可用入口：${disabledScenes.join('、')}`;
+      banner.title = '来自 function manifest 的入口状态摘要';
+    } else {
+      banner.classList.add('hidden');
+      banner.textContent = '';
+      banner.removeAttribute('title');
+    }
+  }
 }
 
 async function loadFunctionHeader() {
