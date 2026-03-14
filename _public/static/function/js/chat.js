@@ -62,17 +62,23 @@
         when: (field) => !!(field && field.ui && systemLabel),
       },
     ]);
-
-    const reasoningField = fieldMap.get('reasoning_effort');
-    if (reasoningField && settingsToggle && reasoningField.ui) {
-      settingsToggle.dataset.dynamicLabel = reasoningField.ui.label || '';
-      window.SchemaUI.setTitle(settingsToggle, reasoningField.ui.description || reasoningField.ui.label);
-    }
-
-    const systemField = fieldMap.get('messages');
-    if (systemField && systemInput && systemField.min_items !== undefined) {
-      systemInput.dataset.schemaSource = 'messages';
-    }
+    window.SceneAssembly.applyFieldEffectPlan({ fieldMap }, [
+      {
+        fieldName: 'reasoning_effort',
+        when: (field) => !!(field && settingsToggle && field.ui),
+        apply: (field) => {
+          settingsToggle.dataset.dynamicLabel = field.ui.label || '';
+          window.SchemaUI.setTitle(settingsToggle, field.ui.description || field.ui.label);
+        },
+      },
+      {
+        fieldName: 'messages',
+        when: (field) => !!(field && systemInput && field.min_items !== undefined),
+        apply: () => {
+          systemInput.dataset.schemaSource = 'messages';
+        },
+      },
+    ]);
   }
 
   function applyChatManifest(manifest) {

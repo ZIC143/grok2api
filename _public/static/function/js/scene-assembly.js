@@ -147,6 +147,22 @@ function applyFieldUiPlan(parts, uiPlan = []) {
   });
 }
 
+function applyFieldEffectPlan(parts, effectPlan = []) {
+  if (!parts || !Array.isArray(effectPlan)) return;
+  applySceneFields(parts, {
+    fieldHandlers: effectPlan.map((entry) => ({
+      fieldName: entry && entry.fieldName,
+      apply: (field) => {
+        if (!entry || !field) return;
+        if (typeof entry.when === 'function' && !entry.when(field, parts)) return;
+        if (typeof entry.apply === 'function') {
+          entry.apply(field, parts);
+        }
+      },
+    })),
+  });
+}
+
 function applyBootstrapDefaults(parts, options = {}) {
   if (!parts) return;
   const { bootstrap, fieldMap } = parts;
@@ -238,6 +254,7 @@ window.SceneAssembly = {
   applySceneFields,
   applyFieldRenderPlan,
   applyFieldUiPlan,
+  applyFieldEffectPlan,
   applyBootstrapDefaults,
   applyScenePresentation,
   applyScenePresentationPlan,

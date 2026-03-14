@@ -91,15 +91,27 @@
       },
     ]);
 
-    if (lengthField && typeof lengthField.min === 'number') {
-      lengthSelect.min = String(lengthField.min);
-    }
-    if (lengthField && typeof lengthField.max === 'number') {
-      lengthSelect.max = String(lengthField.max);
-    }
-    if (imageField && imageField.format === 'url-or-data-uri' && imageUrlInput) {
-      imageUrlInput.pattern = '^(https?://.+|data:.+)$';
-    }
+    window.SceneAssembly.applyFieldEffectPlan(parts, [
+      {
+        fieldName: 'video_length',
+        when: (field) => !!(field && lengthSelect),
+        apply: (field) => {
+          if (typeof field.min === 'number') {
+            lengthSelect.min = String(field.min);
+          }
+          if (typeof field.max === 'number') {
+            lengthSelect.max = String(field.max);
+          }
+        },
+      },
+      {
+        fieldName: 'image_url',
+        when: (field) => !!(field && imageUrlInput && field.format === 'url-or-data-uri'),
+        apply: () => {
+          imageUrlInput.pattern = '^(https?://.+|data:.+)$';
+        },
+      },
+    ]);
     window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
         statusElement: statusText,
