@@ -299,6 +299,123 @@ function getTaskRestrictionSummary(config) {
   };
 }
 
+function buildFieldSchema(field) {
+  return field;
+}
+
+function getChatFormSchema(config) {
+  const chatInit = getChatInitConfig(config);
+  return {
+    status: 'ok',
+    scene: 'chat',
+    endpoint: '/v1/function/chat/completions',
+    method: 'POST',
+    submit_supported: false,
+    examples: {
+      minimal: {
+        model: chatInit.defaults.model,
+        messages: [{ role: 'user', content: '你好，帮我总结今天的待办。' }],
+      },
+      full: {
+        model: chatInit.defaults.model,
+        stream: false,
+        temperature: 0.8,
+        top_p: 0.95,
+        reasoning_effort: 'low',
+        messages: [{ role: 'user', content: '请解释 Cloudflare Workers 的适用边界。' }],
+      },
+    },
+    fields: [
+      buildFieldSchema({ name: 'model', type: 'select', required: true, options: chatInit.models.available, default: chatInit.defaults.model }),
+      buildFieldSchema({ name: 'messages', type: 'array', required: true, item_type: 'message', min_items: 1 }),
+      buildFieldSchema({ name: 'stream', type: 'boolean', required: false, default: false, disabled: true }),
+      buildFieldSchema({ name: 'temperature', type: 'number', required: false, min: 0, max: 2, step: 0.1, default: 0.8 }),
+      buildFieldSchema({ name: 'top_p', type: 'number', required: false, min: 0, max: 1, step: 0.05, default: 0.95 }),
+      buildFieldSchema({ name: 'reasoning_effort', type: 'select', required: false, options: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'], default: 'low' }),
+    ],
+  };
+}
+
+function getImagineFormSchema(config) {
+  const imagineInit = getImagineInitConfig(config);
+  return {
+    status: 'ok',
+    scene: 'imagine',
+    endpoint: '/v1/function/imagine/start',
+    method: 'POST',
+    submit_supported: false,
+    examples: {
+      minimal: {
+        prompt: '一只戴着宇航头盔的橘猫',
+        aspect_ratio: imagineInit.defaults.aspect_ratio,
+      },
+      full: {
+        prompt: '赛博朋克城市上空飞行的鲸鱼',
+        aspect_ratio: imagineInit.defaults.aspect_ratio,
+        nsfw: imagineInit.defaults.nsfw,
+      },
+    },
+    fields: [
+      buildFieldSchema({ name: 'prompt', type: 'string', required: true, min_length: 1, widget: 'textarea' }),
+      buildFieldSchema({ name: 'aspect_ratio', type: 'select', required: false, options: imagineInit.options.aspect_ratios, default: imagineInit.defaults.aspect_ratio }),
+      buildFieldSchema({ name: 'nsfw', type: 'boolean', required: false, default: imagineInit.defaults.nsfw }),
+    ],
+  };
+}
+
+function getVideoFormSchema(config) {
+  const videoInit = getVideoInitConfig(config);
+  return {
+    status: 'ok',
+    scene: 'video',
+    endpoint: '/v1/function/video/start',
+    method: 'POST',
+    submit_supported: false,
+    examples: {
+      minimal: {
+        prompt: '海边黄昏的慢镜头',
+        aspect_ratio: videoInit.defaults.aspect_ratio,
+        video_length: videoInit.defaults.video_length,
+      },
+      full: {
+        prompt: '雨夜街头穿行的无人车',
+        aspect_ratio: videoInit.defaults.aspect_ratio,
+        video_length: videoInit.defaults.video_length,
+        resolution_name: videoInit.defaults.resolution_name,
+        preset: videoInit.defaults.preset,
+        reasoning_effort: videoInit.defaults.reasoning_effort,
+        image_url: 'https://example.com/reference.png',
+      },
+    },
+    fields: [
+      buildFieldSchema({ name: 'prompt', type: 'string', required: true, min_length: 1, widget: 'textarea' }),
+      buildFieldSchema({ name: 'aspect_ratio', type: 'select', required: false, options: videoInit.options.aspect_ratios, default: videoInit.defaults.aspect_ratio }),
+      buildFieldSchema({ name: 'video_length', type: 'select', required: false, options: videoInit.options.video_lengths, default: videoInit.defaults.video_length }),
+      buildFieldSchema({ name: 'resolution_name', type: 'select', required: false, options: videoInit.options.resolution_names, default: videoInit.defaults.resolution_name }),
+      buildFieldSchema({ name: 'preset', type: 'select', required: false, options: videoInit.options.presets, default: videoInit.defaults.preset }),
+      buildFieldSchema({ name: 'reasoning_effort', type: 'select', required: false, options: videoInit.options.reasoning_efforts, default: videoInit.defaults.reasoning_effort }),
+      buildFieldSchema({ name: 'image_url', type: 'string', required: false, format: 'url-or-data-uri' }),
+    ],
+  };
+}
+
+function getTaskSchemaIndex(config) {
+  return {
+    status: 'ok',
+    version: 'phase-d',
+    schemas: {
+      chat: '/v1/function/schema/chat',
+      imagine: '/v1/function/schema/imagine',
+      video: '/v1/function/schema/video',
+    },
+    scenes: {
+      chat: getChatFormSchema(config),
+      imagine: getImagineFormSchema(config),
+      video: getVideoFormSchema(config),
+    },
+  };
+}
+
 const DEFAULT_RUNTIME_CONFIG = {
   app: {
     app_url: '',
@@ -988,6 +1105,10 @@ async function getOpenAIMetadata(env) {
       function_capabilities: '/v1/function/capabilities',
       function_limits: '/v1/function/limits',
       function_restrictions: '/v1/function/restrictions',
+      function_schema_index: '/v1/function/schema',
+      function_schema_chat: '/v1/function/schema/chat',
+      function_schema_imagine: '/v1/function/schema/imagine',
+      function_schema_video: '/v1/function/schema/video',
       runtime_status: '/v1/runtime/status',
       runtime_checks: '/v1/runtime/checks',
       runtime_storage: '/v1/runtime/storage',
@@ -1007,6 +1128,10 @@ async function getOpenAIMetadata(env) {
       function_capabilities: true,
       function_limits: true,
       function_restrictions: true,
+      function_schema_index: true,
+      function_schema_chat: true,
+      function_schema_imagine: true,
+      function_schema_video: true,
       runtime_status: true,
       runtime_checks: true,
       runtime_storage: true,
@@ -1055,7 +1180,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/function/schema', '/v1/function/schema/chat', '/v1/function/schema/imagine', '/v1/function/schema/video', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -1109,6 +1234,26 @@ export default {
     if (url.pathname === '/v1/function/restrictions' && request.method === 'GET') {
       const runtimeConfig = await getRuntimeConfig(env);
       return json(getTaskRestrictionSummary(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/schema' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getTaskSchemaIndex(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/schema/chat' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getChatFormSchema(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/schema/imagine' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getImagineFormSchema(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/schema/video' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getVideoFormSchema(runtimeConfig.config));
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
