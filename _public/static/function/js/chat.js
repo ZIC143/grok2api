@@ -533,9 +533,7 @@
   }
 
   function toast(message, type) {
-    if (typeof showToast === 'function') {
-      showToast(message, type);
-    }
+    window.AdminAuth.showFunctionToast(message, type);
   }
 
   function setStatus(state, text) {

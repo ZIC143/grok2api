@@ -122,9 +122,7 @@
   }
 
   function toast(message, type) {
-    if (typeof showToast === 'function') {
-      showToast(message, type);
-    }
+    window.AdminAuth.showFunctionToast(message, type);
   }
 
   function setStatus(state, text) {
@@ -132,15 +130,7 @@
   }
 
   function setButtons(connected) {
-    if (!startBtn || !stopBtn) return;
-    if (connected) {
-      startBtn.classList.add('hidden');
-      stopBtn.classList.remove('hidden');
-    } else {
-      startBtn.classList.remove('hidden');
-      stopBtn.classList.add('hidden');
-      startBtn.disabled = false;
-    }
+    window.AdminAuth.setFunctionActionButtons(startBtn, stopBtn, connected);
   }
 
   function updateCount(value) {

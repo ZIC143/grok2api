@@ -267,6 +267,24 @@ function setFunctionStatus(statusElement, state, text, fallbackText) {
   }
 }
 
+function showFunctionToast(message, type) {
+  if (typeof showToast === 'function') {
+    showToast(message, type);
+  }
+}
+
+function setFunctionActionButtons(primaryButton, secondaryButton, active) {
+  if (!primaryButton || !secondaryButton) return;
+  if (active) {
+    primaryButton.classList.add('hidden');
+    secondaryButton.classList.remove('hidden');
+  } else {
+    primaryButton.classList.remove('hidden');
+    secondaryButton.classList.add('hidden');
+    primaryButton.disabled = false;
+  }
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -278,6 +296,8 @@ window.AdminAuth = {
   initializeFunctionPage,
   initializeFunctionScene,
   setFunctionStatus,
+  showFunctionToast,
+  setFunctionActionButtons,
   buildAuthHeaders,
   logout,
   functionLogout,
