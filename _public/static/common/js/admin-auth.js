@@ -346,6 +346,10 @@ async function postFunctionJsonExpectJson(url, payload, options = {}) {
   return res.json();
 }
 
+async function postFunctionJsonRaw(url, payload, options = {}) {
+  return postFunctionJson(url, payload, options);
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -363,6 +367,7 @@ window.AdminAuth = {
   buildFunctionJsonHeaders,
   postFunctionJson,
   postFunctionJsonExpectJson,
+  postFunctionJsonRaw,
   buildAuthHeaders,
   logout,
   functionLogout,

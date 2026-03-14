@@ -1104,18 +1104,15 @@
     const payload = buildPayload();
 
     (async () => {
-      const headers = await window.AdminAuth.buildFunctionJsonHeaders(
-        { 'Content-Type': 'application/json' },
-        { onError: async () => {} }
-      );
-
       try {
-        const res = await fetch(CHAT_COMPLETIONS_ENDPOINT, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-          signal: abortController.signal
-        });
+        const res = await window.AdminAuth.postFunctionJsonRaw(
+          CHAT_COMPLETIONS_ENDPOINT,
+          payload,
+          {
+            onError: async () => {},
+            signal: abortController.signal,
+          }
+        );
         if (!res.ok) throw new Error(t('chat.requestFailedStatus', { status: res.status }));
         await handleStream(res, assistantEntry, sendSessionId);
         setStatus('connected', t('common.done'));
@@ -1623,18 +1620,15 @@
     abortController = new AbortController();
     const payload = buildPayloadFrom(historySlice);
 
-    const headers = await window.AdminAuth.buildFunctionJsonHeaders(
-      { 'Content-Type': 'application/json' },
-      { onError: async () => {} }
-    );
-
     try {
-      const res = await fetch(CHAT_COMPLETIONS_ENDPOINT, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-        signal: abortController.signal
-      });
+      const res = await window.AdminAuth.postFunctionJsonRaw(
+        CHAT_COMPLETIONS_ENDPOINT,
+        payload,
+        {
+          onError: async () => {},
+          signal: abortController.signal,
+        }
+      );
 
       if (!res.ok) {
         throw new Error(t('chat.requestFailedStatus', { status: res.status }));
@@ -1703,18 +1697,15 @@
     abortController = new AbortController();
     const payload = buildPayload();
 
-    const headers = await window.AdminAuth.buildFunctionJsonHeaders(
-      { 'Content-Type': 'application/json' },
-      { onError: async () => {} }
-    );
-
     try {
-      const res = await fetch(CHAT_COMPLETIONS_ENDPOINT, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-        signal: abortController.signal
-      });
+      const res = await window.AdminAuth.postFunctionJsonRaw(
+        CHAT_COMPLETIONS_ENDPOINT,
+        payload,
+        {
+          onError: async () => {},
+          signal: abortController.signal,
+        }
+      );
 
       if (!res.ok) {
         throw new Error(t('chat.requestFailedStatus', { status: res.status }));
