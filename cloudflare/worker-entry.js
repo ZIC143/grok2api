@@ -477,6 +477,15 @@ async function saveRuntimeFlags(env, flags) {
   return { ok: true, detail: 'flags-saved' };
 }
 
+async function deleteRuntimeFlags(env) {
+  if (!(env.KV_CACHE && typeof env.KV_CACHE.delete === 'function')) {
+    return { ok: false, detail: 'kv-binding-missing' };
+  }
+
+  await env.KV_CACHE.delete(FLAGS_KEY);
+  return { ok: true, detail: 'flags-deleted' };
+}
+
 async function getRuntimeNotes(env) {
   const defaults = {
     note: '',
@@ -508,6 +517,15 @@ async function saveRuntimeNotes(env, notes) {
 
   await env.KV_CACHE.put(NOTES_KEY, JSON.stringify(notes));
   return { ok: true, detail: 'notes-saved' };
+}
+
+async function deleteRuntimeNotes(env) {
+  if (!(env.KV_CACHE && typeof env.KV_CACHE.delete === 'function')) {
+    return { ok: false, detail: 'kv-binding-missing' };
+  }
+
+  await env.KV_CACHE.delete(NOTES_KEY);
+  return { ok: true, detail: 'notes-deleted' };
 }
 
 async function getStorageSnapshot(env) {
@@ -749,6 +767,25 @@ export default {
       return json({ status: 'ok', flags: nextFlags });
     }
 
+    if (url.pathname === '/v1/runtime/flags/reset' && request.method === 'POST') {
+      const deleteResult = await deleteRuntimeFlags(env);
+      if (!deleteResult.ok) {
+        return json({ status: 'error', message: deleteResult.detail }, { status: 503 });
+      }
+
+      const resetFlags = (await getRuntimeFlags(env)).flags;
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_flags', {
+          ...resetFlags,
+          updated_at: new Date().toISOString(),
+          reset: true,
+        });
+      }
+
+      return json({ status: 'ok', reset: true, flags: resetFlags });
+    }
+
     if (url.pathname === '/v1/runtime/notes' && request.method === 'GET') {
       const runtimeNotes = await getRuntimeNotes(env);
       return json({ status: 'ok', source: runtimeNotes.source, notes: runtimeNotes.notes });
@@ -788,6 +825,25 @@ export default {
       }
 
       return json({ status: 'ok', notes: nextNotes });
+    }
+
+    if (url.pathname === '/v1/runtime/notes/reset' && request.method === 'POST') {
+      const deleteResult = await deleteRuntimeNotes(env);
+      if (!deleteResult.ok) {
+        return json({ status: 'error', message: deleteResult.detail }, { status: 503 });
+      }
+
+      const resetNotes = (await getRuntimeNotes(env)).notes;
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_notes', {
+          ...resetNotes,
+          updated_at: new Date().toISOString(),
+          reset: true,
+        });
+      }
+
+      return json({ status: 'ok', reset: true, notes: resetNotes });
     }
 
     if (url.pathname === '/v1/runtime/storage' && request.method === 'GET') {
