@@ -10,6 +10,7 @@ function json(data, init = {}) {
 
 const CONFIG_KEY = 'grok2api:config:runtime';
 const FLAGS_KEY = 'grok2api:runtime:flags';
+const NOTES_KEY = 'grok2api:runtime:notes';
 
 const MODEL_CATALOG = [
   { id: 'grok-3', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
@@ -476,6 +477,39 @@ async function saveRuntimeFlags(env, flags) {
   return { ok: true, detail: 'flags-saved' };
 }
 
+async function getRuntimeNotes(env) {
+  const defaults = {
+    note: '',
+    updated_at: '',
+  };
+
+  if (!(env.KV_CACHE && typeof env.KV_CACHE.get === 'function')) {
+    return { source: 'default', notes: defaults };
+  }
+
+  const stored = await env.KV_CACHE.get(NOTES_KEY, { type: 'json' });
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+    return { source: 'default', notes: defaults };
+  }
+
+  return {
+    source: 'kv',
+    notes: {
+      ...defaults,
+      ...stored,
+    },
+  };
+}
+
+async function saveRuntimeNotes(env, notes) {
+  if (!(env.KV_CACHE && typeof env.KV_CACHE.put === 'function')) {
+    return { ok: false, detail: 'kv-binding-missing' };
+  }
+
+  await env.KV_CACHE.put(NOTES_KEY, JSON.stringify(notes));
+  return { ok: true, detail: 'notes-saved' };
+}
+
 async function getStorageSnapshot(env) {
   const schema = await ensureD1Schema(env);
   const runtimeConfig = await getRuntimeConfig(env);
@@ -554,11 +588,12 @@ async function runStorageCheck(env) {
 }
 
 async function getRuntimeStatus(env) {
-  const [runtimeConfig, snapshot, checks, runtimeFlags] = await Promise.all([
+  const [runtimeConfig, snapshot, checks, runtimeFlags, runtimeNotes] = await Promise.all([
     getRuntimeConfig(env),
     getStorageSnapshot(env),
     runStorageCheck(env),
     getRuntimeFlags(env),
+    getRuntimeNotes(env),
   ]);
 
   return {
@@ -568,6 +603,7 @@ async function getRuntimeStatus(env) {
     migrated: runtimeConfig.migrated,
     removed: runtimeConfig.removed,
     flags: runtimeFlags,
+    notes: runtimeNotes,
     checks,
     storage: snapshot,
   };
@@ -711,6 +747,47 @@ export default {
       }
 
       return json({ status: 'ok', flags: nextFlags });
+    }
+
+    if (url.pathname === '/v1/runtime/notes' && request.method === 'GET') {
+      const runtimeNotes = await getRuntimeNotes(env);
+      return json({ status: 'ok', source: runtimeNotes.source, notes: runtimeNotes.notes });
+    }
+
+    if (url.pathname === '/v1/runtime/notes' && request.method === 'POST') {
+      let payload;
+      try {
+        payload = await request.json();
+      } catch {
+        return json({ status: 'error', message: 'invalid-json' }, { status: 400 });
+      }
+
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return json({ status: 'error', message: 'payload-must-be-object' }, { status: 400 });
+      }
+
+      const current = await getRuntimeNotes(env);
+      const nextNotes = {
+        ...current.notes,
+        ...payload,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (typeof nextNotes.note !== 'string') {
+        return json({ status: 'error', message: 'note-must-be-string' }, { status: 400 });
+      }
+
+      const saveResult = await saveRuntimeNotes(env, nextNotes);
+      if (!saveResult.ok) {
+        return json({ status: 'error', message: saveResult.detail }, { status: 503 });
+      }
+
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_notes', nextNotes);
+      }
+
+      return json({ status: 'ok', notes: nextNotes });
     }
 
     if (url.pathname === '/v1/runtime/storage' && request.method === 'GET') {

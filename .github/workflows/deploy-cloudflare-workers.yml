@@ -537,6 +537,59 @@ jobs:
             --data '{"maintenance_mode":true,"models_bridge_enabled":true}' \
             "$flags_url"
 
+      - name: Runtime notes read bridge check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          notes_url="${worker_url}/v1/runtime/notes"
+          echo "Checking ${notes_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$notes_url"
+
+      - name: Runtime notes write bridge check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          notes_url="${worker_url}/v1/runtime/notes"
+          echo "Posting to ${notes_url}"
+          curl --fail --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 2 \
+            -H "Content-Type: application/json" \
+            -X POST \
+            --data '{"note":"phase-2-smoke-test"}' \
+            "$notes_url"
+
       - name: Runtime storage bridge check
         shell: bash
         run: |
