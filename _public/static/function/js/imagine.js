@@ -311,14 +311,11 @@
   async function stopImagineTasks(taskIds, authHeader) {
     if (!taskIds || taskIds.length === 0) return;
     try {
-      await fetch('/v1/function/imagine/stop', {
-        method: 'POST',
-        headers: {
-          ...buildAuthHeaders(authHeader),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ task_ids: taskIds })
-      });
+      await window.AdminAuth.postFunctionJson(
+        '/v1/function/imagine/stop',
+        { task_ids: taskIds },
+        { headers: buildAuthHeaders(authHeader) }
+      );
     } catch (e) {
       // ignore
     }

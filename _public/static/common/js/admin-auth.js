@@ -323,6 +323,20 @@ async function buildFunctionJsonHeaders(baseHeaders = {}, options = {}) {
   return headers;
 }
 
+async function postFunctionJson(url, payload, options = {}) {
+  const headers = await buildFunctionJsonHeaders(
+    { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    { onError: options.onError }
+  );
+
+  return fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+    signal: options.signal,
+  });
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -338,6 +352,7 @@ window.AdminAuth = {
   setFunctionActionButtons,
   withFunctionAuth,
   buildFunctionJsonHeaders,
+  postFunctionJson,
   buildAuthHeaders,
   logout,
   functionLogout,

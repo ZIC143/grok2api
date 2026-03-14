@@ -379,14 +379,11 @@
   async function stopVideoTask(taskId, authHeader) {
     if (!taskId) return;
     try {
-      await fetch('/v1/function/video/stop', {
-        method: 'POST',
-        headers: {
-          ...buildAuthHeaders(authHeader),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ task_ids: [taskId] })
-      });
+      await window.AdminAuth.postFunctionJson(
+        '/v1/function/video/stop',
+        { task_ids: [taskId] },
+        { headers: buildAuthHeaders(authHeader) }
+      );
     } catch (e) {
       // ignore
     }
