@@ -536,6 +536,44 @@ async function getRuntimeStatus(env) {
   };
 }
 
+async function getOpenAIMetadata(env) {
+  const runtimeConfig = await getRuntimeConfig(env);
+  return {
+    object: 'service',
+    id: 'grok2api-cloudflare-workers',
+    created: 0,
+    owned_by: 'grok2api@cloudflare',
+    version: 'bridge-v1',
+    runtime: {
+      name: 'cloudflare-workers',
+      environment: env.APP_ENV || 'unknown',
+      source: runtimeConfig.source,
+    },
+    endpoints: {
+      models: '/v1/models',
+      model_detail: '/v1/models/:id',
+      runtime_status: '/v1/runtime/status',
+      runtime_checks: '/v1/runtime/checks',
+      runtime_storage: '/v1/runtime/storage',
+      config_summary: '/v1/config/summary',
+      metadata: '/v1/metadata',
+    },
+    capabilities: {
+      models_list: true,
+      model_detail: true,
+      runtime_status: true,
+      runtime_checks: true,
+      runtime_storage: true,
+      config_summary: true,
+      config_write: true,
+      responses_bridge: false,
+      chat_bridge: false,
+      image_bridge: false,
+      video_bridge: false,
+    },
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -571,7 +609,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/config/summary'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -597,6 +635,16 @@ export default {
       return json({ status: 'ok', runtime: status });
     }
 
+    if (url.pathname === '/v1/runtime/checks' && request.method === 'GET') {
+      const checks = await runStorageCheck(env);
+      return json({ status: checks.ok ? 'ok' : 'degraded', checks });
+    }
+
+    if (url.pathname === '/v1/runtime/storage' && request.method === 'GET') {
+      const snapshot = await getStorageSnapshot(env);
+      return json({ status: snapshot.d1.schema.ok ? 'ok' : 'degraded', storage: snapshot });
+    }
+
     if (url.pathname === '/v1/config/summary' && request.method === 'GET') {
       const runtimeConfig = await getRuntimeConfig(env);
       return json({
@@ -606,6 +654,11 @@ export default {
         removed: runtimeConfig.removed,
         summary: getConfigSummary(runtimeConfig.config),
       });
+    }
+
+    if (url.pathname === '/v1/metadata' && request.method === 'GET') {
+      const metadata = await getOpenAIMetadata(env);
+      return json(metadata);
     }
 
     if (url.pathname === '/config/sections' && request.method === 'GET') {
