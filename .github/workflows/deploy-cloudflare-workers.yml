@@ -412,6 +412,30 @@ jobs:
           echo "Checking ${models_url}"
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$models_url"
 
+      - name: Model detail bridge check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          model_url="${worker_url}/v1/models/grok-4"
+          echo "Checking ${model_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$model_url"
+
       - name: Runtime status bridge check
         shell: bash
         run: |
@@ -435,6 +459,30 @@ jobs:
           runtime_status_url="${worker_url}/v1/runtime/status"
           echo "Checking ${runtime_status_url}"
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$runtime_status_url"
+
+      - name: Config summary bridge check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          summary_url="${worker_url}/v1/config/summary"
+          echo "Checking ${summary_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$summary_url"
 
       - name: Post deploy summary
         shell: bash

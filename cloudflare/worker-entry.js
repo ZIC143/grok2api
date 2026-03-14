@@ -28,6 +28,48 @@ const MODEL_CATALOG = [
   { id: 'grok-imagine-1.0-video', owned_by: 'grok2api@cloudflare', mode: 'video', tier: 'basic', cost: 'high' },
 ];
 
+function getModelCatalogResponse() {
+  return MODEL_CATALOG.map((model) => ({
+    id: model.id,
+    object: 'model',
+    created: 0,
+    owned_by: model.owned_by,
+    metadata: {
+      mode: model.mode,
+      tier: model.tier,
+      cost: model.cost,
+      runtime: 'cloudflare-workers-bridge',
+    },
+  }));
+}
+
+function getConfigSummary(config) {
+  return {
+    sections: Object.keys(config),
+    app: {
+      function_enabled: Boolean(config.app?.function_enabled),
+      image_format: config.app?.image_format || 'url',
+      video_format: config.app?.video_format || 'html',
+      temporary: Boolean(config.app?.temporary),
+      disable_memory: Boolean(config.app?.disable_memory),
+      stream: Boolean(config.app?.stream),
+      thinking: Boolean(config.app?.thinking),
+    },
+    proxy: {
+      enabled: Boolean(config.proxy?.enabled),
+      has_base_proxy_url: Boolean(config.proxy?.base_proxy_url),
+      has_asset_proxy_url: Boolean(config.proxy?.asset_proxy_url),
+      has_cf_clearance: Boolean(config.proxy?.cf_clearance),
+    },
+    token: {
+      auto_refresh: Boolean(config.token?.auto_refresh),
+      refresh_interval_hours: config.token?.refresh_interval_hours,
+      super_refresh_interval_hours: config.token?.super_refresh_interval_hours,
+    },
+    runtime: config.runtime || {},
+  };
+}
+
 const DEFAULT_RUNTIME_CONFIG = {
   app: {
     app_url: '',
@@ -529,7 +571,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/models', '/v1/runtime/status'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/config/summary'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -537,24 +579,33 @@ export default {
     if (url.pathname === '/v1/models' && request.method === 'GET') {
       return json({
         object: 'list',
-        data: MODEL_CATALOG.map((model) => ({
-          id: model.id,
-          object: 'model',
-          created: 0,
-          owned_by: model.owned_by,
-          metadata: {
-            mode: model.mode,
-            tier: model.tier,
-            cost: model.cost,
-            runtime: 'cloudflare-workers-bridge',
-          },
-        })),
+        data: getModelCatalogResponse(),
       });
+    }
+
+    if (url.pathname.startsWith('/v1/models/') && request.method === 'GET') {
+      const modelId = decodeURIComponent(url.pathname.slice('/v1/models/'.length));
+      const model = getModelCatalogResponse().find((item) => item.id === modelId);
+      if (!model) {
+        return json({ status: 'error', message: 'model-not-found', model: modelId }, { status: 404 });
+      }
+      return json(model);
     }
 
     if (url.pathname === '/v1/runtime/status' && request.method === 'GET') {
       const status = await getRuntimeStatus(env);
       return json({ status: 'ok', runtime: status });
+    }
+
+    if (url.pathname === '/v1/config/summary' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json({
+        status: 'ok',
+        source: runtimeConfig.source,
+        migrated: runtimeConfig.migrated,
+        removed: runtimeConfig.removed,
+        summary: getConfigSummary(runtimeConfig.config),
+      });
     }
 
     if (url.pathname === '/config/sections' && request.method === 'GET') {
