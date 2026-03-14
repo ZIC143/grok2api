@@ -241,6 +241,23 @@ async function initializeFunctionPage(options = {}) {
   return accessState;
 }
 
+async function initializeFunctionScene(options = {}) {
+  return initializeFunctionPage({
+    onUnauthorized: options.onUnauthorized,
+    onAuthorized: async (accessState) => {
+      if (typeof options.beforeSceneInit === 'function') {
+        await options.beforeSceneInit(accessState);
+      }
+      if (options.manifest) {
+        await window.FunctionManifestClient.initialize(options.manifest);
+      }
+      if (typeof options.afterSceneInit === 'function') {
+        await options.afterSceneInit(accessState);
+      }
+    },
+  });
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -250,6 +267,7 @@ window.AdminAuth = {
   ensureFunctionKey,
   getFunctionAccessState,
   initializeFunctionPage,
+  initializeFunctionScene,
   buildAuthHeaders,
   logout,
   functionLogout,

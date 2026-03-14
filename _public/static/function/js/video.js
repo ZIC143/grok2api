@@ -763,12 +763,10 @@
   }
 
   (async () => {
-    await window.AdminAuth.initializeFunctionPage({
-      onAuthorized: async () => {
-        await window.FunctionManifestClient.initialize({
+    await window.AdminAuth.initializeFunctionScene({
+      manifest: {
           onManifest: applyVideoManifest,
           onMissing: updateMeta,
-        });
       },
     });
   })();

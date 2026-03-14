@@ -942,8 +942,8 @@
     });
   }
 
-  window.AdminAuth.initializeFunctionPage({
-    onAuthorized: loadFilterDefaults,
+  window.AdminAuth.initializeFunctionScene({
+    afterSceneInit: loadFilterDefaults,
   });
 
   if (ratioSelect) {
