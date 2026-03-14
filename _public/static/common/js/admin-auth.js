@@ -223,6 +223,24 @@ async function getFunctionAccessState() {
   }
 }
 
+async function initializeFunctionPage(options = {}) {
+  const accessState = await getFunctionAccessState();
+  if (accessState.requiresLogin) {
+    if (typeof options.onUnauthorized === 'function') {
+      await options.onUnauthorized(accessState);
+      return accessState;
+    }
+    window.location.href = '/login';
+    return accessState;
+  }
+
+  if (typeof options.onAuthorized === 'function') {
+    await options.onAuthorized(accessState);
+  }
+
+  return accessState;
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -231,6 +249,7 @@ window.AdminAuth = {
   ensureAdminKey,
   ensureFunctionKey,
   getFunctionAccessState,
+  initializeFunctionPage,
   buildAuthHeaders,
   logout,
   functionLogout,

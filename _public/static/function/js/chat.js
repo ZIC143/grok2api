@@ -1954,21 +1954,15 @@
   restoreSidebarState();
 
   (async () => {
-    try {
-      const authResult = await ensureFunctionKey();
-      if (authResult === null) {
-        window.location.href = '/login';
-        return;
-      }
-    } catch (e) {
-      window.location.href = '/login';
-      return;
-    }
-    await window.FunctionManifestClient.initialize({
-      onManifest: applyChatManifest,
-      onMissing: updateRangeValues,
+    await window.AdminAuth.initializeFunctionPage({
+      onAuthorized: async () => {
+        await window.FunctionManifestClient.initialize({
+          onManifest: applyChatManifest,
+          onMissing: updateRangeValues,
+        });
+        await loadModels();
+        loadSessions();
+      },
     });
-    await loadModels();
-    loadSessions();
   })();
 })();

@@ -763,9 +763,13 @@
   }
 
   (async () => {
-    await window.FunctionManifestClient.initialize({
-      onManifest: applyVideoManifest,
-      onMissing: updateMeta,
+    await window.AdminAuth.initializeFunctionPage({
+      onAuthorized: async () => {
+        await window.FunctionManifestClient.initialize({
+          onManifest: applyVideoManifest,
+          onMissing: updateMeta,
+        });
+      },
     });
   })();
 })();
