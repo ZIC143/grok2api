@@ -1,5 +1,21 @@
 const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
 
+function applyChatModelSummary(container, manifest) {
+  if (!container || !manifest || !manifest.scenes || !manifest.scenes.chat) return;
+  const host = container.querySelector('#function-summary-badges');
+  if (!host) return;
+  const chatScene = manifest.scenes.chat;
+  const models = chatScene.bootstrap && chatScene.bootstrap.models && Array.isArray(chatScene.bootstrap.models.available)
+    ? chatScene.bootstrap.models.available
+    : [];
+  if (!models.length) return;
+  const badge = document.createElement('span');
+  badge.className = 'nav-summary-badge nav-summary-muted';
+  badge.textContent = `Chat 模型 ${models.length}`;
+  badge.title = `聊天场景可用模型数：${models.length}`;
+  host.appendChild(badge);
+}
+
 async function loadFunctionManifestSummary() {
   try {
     const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
@@ -75,6 +91,8 @@ function applyFunctionManifestSummary(container, manifest) {
       badgesHost.appendChild(el);
     });
   }
+
+  applyChatModelSummary(container, manifest);
 
   const banner = document.getElementById('function-status-banner');
   if (banner) {
