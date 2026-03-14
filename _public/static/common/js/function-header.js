@@ -44,6 +44,37 @@ function applyFunctionManifestSummary(container, manifest) {
       });
     }
   });
+
+  const badgesHost = container.querySelector('#function-summary-badges');
+  if (badgesHost) {
+    badgesHost.innerHTML = '';
+    const sceneEntries = Object.entries(manifest.scenes)
+      .filter(([, scene]) => scene && scene.access)
+      .map(([sceneName, scene]) => ({
+        sceneName,
+        enabled: scene.access.enabled !== false,
+        authRequired: Boolean(scene.access.auth_required),
+        publicAccess: Boolean(scene.access.public_access),
+      }));
+
+    const totalEnabled = sceneEntries.filter((entry) => entry.enabled).length;
+    const publicCount = sceneEntries.filter((entry) => entry.publicAccess).length;
+    const authCount = sceneEntries.filter((entry) => entry.authRequired).length;
+
+    const badges = [
+      { label: `已启用 ${totalEnabled}`, tone: totalEnabled > 0 ? 'ready' : 'muted', title: '当前可用的 function 场景数量' },
+      { label: `公开 ${publicCount}`, tone: publicCount > 0 ? 'info' : 'muted', title: '无需 function key 的入口数量' },
+      { label: `鉴权 ${authCount}`, tone: authCount > 0 ? 'warn' : 'muted', title: '需要 function key 的入口数量' },
+    ];
+
+    badges.forEach((badge) => {
+      const el = document.createElement('span');
+      el.className = `nav-summary-badge nav-summary-${badge.tone}`;
+      el.textContent = badge.label;
+      el.title = badge.title;
+      badgesHost.appendChild(el);
+    });
+  }
 }
 
 async function loadFunctionHeader() {
