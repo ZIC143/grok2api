@@ -43,6 +43,7 @@
   let abortController = null;
   let attachment = null;
   let activeStreamInfo = null;
+  let chatBridgeMode = 'unknown';
   const feedbackUrl = 'https://github.com/chenyme/grok2api/issues/new';
   const CHAT_COMPLETIONS_ENDPOINT = '/v1/function/chat/completions';
   const DEFAULT_SESSION_TITLES = ['新会话', 'New Session'];
@@ -86,6 +87,9 @@
     if (!parts) return;
 
     const { ui, fieldMap } = parts;
+    chatBridgeMode = manifest && manifest.runtime && manifest.runtime.chat_bridge && manifest.runtime.chat_bridge.mode
+      ? String(manifest.runtime.chat_bridge.mode)
+      : 'unknown';
     const { available: availableModels, preferred: preferredModel } = window.SceneAssembly.getBootstrapModelConfig(parts);
     if (availableModels.length) {
       modelList = availableModels.slice();
@@ -1114,6 +1118,9 @@
           }
         );
         if (!res.ok) throw new Error(t('chat.requestFailedStatus', { status: res.status }));
+        if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
+          setStatus('connected', 'Bridge 已转发到后端');
+        }
         await handleStream(res, assistantEntry, sendSessionId);
         setStatus('connected', t('common.done'));
       } catch (e) {
@@ -1552,6 +1559,11 @@
     return btn;
   }
 
+  function getChatBridgeLabelFromResponse(res) {
+    if (!res || !res.headers) return '';
+    return res.headers.get('x-grok2api-chat-bridge') || '';
+  }
+
   function attachAssistantActions(entry) {
     if (!entry || !entry.row) return;
     const actions = document.createElement('div');
@@ -1707,6 +1719,10 @@
 
       if (!res.ok) {
         throw new Error(t('chat.requestFailedStatus', { status: res.status }));
+      }
+
+      if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
+        setStatus('connected', 'Bridge 已转发到后端');
       }
 
       await handleStream(res, assistantEntry, sendSessionId);
