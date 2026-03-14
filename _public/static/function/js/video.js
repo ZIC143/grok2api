@@ -539,12 +539,13 @@
       return;
     }
 
-    const authHeader = await ensureFunctionKey();
-    if (authHeader === null) {
-      toast(t('common.configurePublicKey'), 'error');
-      window.location.href = '/login';
-      return;
-    }
+    const authHeader = await window.AdminAuth.withFunctionAuth(null, {
+      onUnauthorized: () => {
+        toast(t('common.configurePublicKey'), 'error');
+        window.location.href = '/login';
+      },
+    });
+    if (authHeader === null) return;
 
     isRunning = true;
     startBtn.disabled = true;

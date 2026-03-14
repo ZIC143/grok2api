@@ -285,6 +285,30 @@ function setFunctionActionButtons(primaryButton, secondaryButton, active) {
   }
 }
 
+async function withFunctionAuth(action, options = {}) {
+  try {
+    const authHeader = await ensureFunctionKey();
+    if (authHeader === null) {
+      if (typeof options.onUnauthorized === 'function') {
+        await options.onUnauthorized();
+      } else if (options.redirectOnUnauthorized !== false) {
+        window.location.href = '/login';
+      }
+      return null;
+    }
+    if (typeof action === 'function') {
+      return await action(authHeader);
+    }
+    return authHeader;
+  } catch (e) {
+    if (typeof options.onError === 'function') {
+      await options.onError(e);
+      return null;
+    }
+    throw e;
+  }
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -298,6 +322,7 @@ window.AdminAuth = {
   setFunctionStatus,
   showFunctionToast,
   setFunctionActionButtons,
+  withFunctionAuth,
   buildAuthHeaders,
   logout,
   functionLogout,
