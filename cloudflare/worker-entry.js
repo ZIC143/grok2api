@@ -9,6 +9,7 @@ function json(data, init = {}) {
 }
 
 const CONFIG_KEY = 'grok2api:config:runtime';
+const FLAGS_KEY = 'grok2api:runtime:flags';
 
 const MODEL_CATALOG = [
   { id: 'grok-3', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
@@ -441,6 +442,40 @@ async function saveRuntimeConfig(env, payload) {
   return { ok: true, detail: 'config-saved' };
 }
 
+async function getRuntimeFlags(env) {
+  const defaults = {
+    bridge_readonly: false,
+    maintenance_mode: false,
+    models_bridge_enabled: true,
+  };
+
+  if (!(env.KV_CACHE && typeof env.KV_CACHE.get === 'function')) {
+    return { source: 'default', flags: defaults };
+  }
+
+  const stored = await env.KV_CACHE.get(FLAGS_KEY, { type: 'json' });
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+    return { source: 'default', flags: defaults };
+  }
+
+  return {
+    source: 'kv',
+    flags: {
+      ...defaults,
+      ...stored,
+    },
+  };
+}
+
+async function saveRuntimeFlags(env, flags) {
+  if (!(env.KV_CACHE && typeof env.KV_CACHE.put === 'function')) {
+    return { ok: false, detail: 'kv-binding-missing' };
+  }
+
+  await env.KV_CACHE.put(FLAGS_KEY, JSON.stringify(flags));
+  return { ok: true, detail: 'flags-saved' };
+}
+
 async function getStorageSnapshot(env) {
   const schema = await ensureD1Schema(env);
   const runtimeConfig = await getRuntimeConfig(env);
@@ -519,10 +554,11 @@ async function runStorageCheck(env) {
 }
 
 async function getRuntimeStatus(env) {
-  const [runtimeConfig, snapshot, checks] = await Promise.all([
+  const [runtimeConfig, snapshot, checks, runtimeFlags] = await Promise.all([
     getRuntimeConfig(env),
     getStorageSnapshot(env),
     runStorageCheck(env),
+    getRuntimeFlags(env),
   ]);
 
   return {
@@ -531,6 +567,7 @@ async function getRuntimeStatus(env) {
     source: runtimeConfig.source,
     migrated: runtimeConfig.migrated,
     removed: runtimeConfig.removed,
+    flags: runtimeFlags,
     checks,
     storage: snapshot,
   };
@@ -638,6 +675,42 @@ export default {
     if (url.pathname === '/v1/runtime/checks' && request.method === 'GET') {
       const checks = await runStorageCheck(env);
       return json({ status: checks.ok ? 'ok' : 'degraded', checks });
+    }
+
+    if (url.pathname === '/v1/runtime/flags' && request.method === 'GET') {
+      const runtimeFlags = await getRuntimeFlags(env);
+      return json({ status: 'ok', source: runtimeFlags.source, flags: runtimeFlags.flags });
+    }
+
+    if (url.pathname === '/v1/runtime/flags' && request.method === 'POST') {
+      let payload;
+      try {
+        payload = await request.json();
+      } catch {
+        return json({ status: 'error', message: 'invalid-json' }, { status: 400 });
+      }
+
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return json({ status: 'error', message: 'payload-must-be-object' }, { status: 400 });
+      }
+
+      const current = await getRuntimeFlags(env);
+      const nextFlags = {
+        ...current.flags,
+        ...payload,
+        updated_at: new Date().toISOString(),
+      };
+      const saveResult = await saveRuntimeFlags(env, nextFlags);
+      if (!saveResult.ok) {
+        return json({ status: 'error', message: saveResult.detail }, { status: 503 });
+      }
+
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_flags', nextFlags);
+      }
+
+      return json({ status: 'ok', flags: nextFlags });
     }
 
     if (url.pathname === '/v1/runtime/storage' && request.method === 'GET') {
