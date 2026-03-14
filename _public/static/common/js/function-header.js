@@ -48,9 +48,7 @@ function applyCapabilitySummary(container, manifest) {
 
 async function loadFunctionManifestSummary() {
   try {
-    const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
-    if (!res.ok) throw new Error('manifest fetch failed');
-    return await res.json();
+    return await window.AdminAuth.getJson(FUNCTION_MANIFEST_ENDPOINT, { errorMessage: 'manifest fetch failed' });
   } catch (e) {
     return null;
   }
