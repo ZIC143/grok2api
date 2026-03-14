@@ -91,14 +91,10 @@
   }
 
   function applyChatManifest(manifest) {
-    const scene = manifest && manifest.scenes && manifest.scenes.chat;
-    if (!scene) return;
+    const parts = window.SceneAssembly.getSceneParts(manifest, 'chat');
+    if (!parts) return;
 
-    const bootstrap = scene.bootstrap || {};
-    const schema = scene.schema || {};
-    const ui = scene.ui || {};
-    const fields = Array.isArray(schema.fields) ? schema.fields : [];
-    const fieldMap = new Map(fields.map((field) => [field.name, field]));
+    const { scene, bootstrap, schema, ui, fieldMap } = parts;
 
     const availableModels = Array.isArray(bootstrap.models && bootstrap.models.available)
       ? bootstrap.models.available

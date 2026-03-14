@@ -53,12 +53,9 @@
   }
 
   function applyImagineManifest(manifest) {
-    const scene = manifest && manifest.scenes && manifest.scenes.imagine;
-    if (!scene) return;
-    const bootstrap = scene.bootstrap || {};
-    const schema = scene.schema || {};
-    const fields = Array.isArray(schema.fields) ? schema.fields : [];
-    const fieldMap = new Map(fields.map((field) => [field.name, field]));
+    const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
+    if (!parts) return;
+    const { scene, bootstrap, schema, fieldMap } = parts;
 
     if (Number.isFinite(Number(bootstrap.final_min_bytes))) {
       finalMinBytesDefault = Number(bootstrap.final_min_bytes);

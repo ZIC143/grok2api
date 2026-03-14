@@ -50,13 +50,9 @@
   }
 
   function applyVideoManifest(manifest) {
-    const scene = manifest && manifest.scenes && manifest.scenes.video;
-    if (!scene) return;
-    const bootstrap = scene.bootstrap || {};
-    const schema = scene.schema || {};
-    const ui = scene.ui || {};
-    const fields = Array.isArray(schema.fields) ? schema.fields : [];
-    const fieldMap = new Map(fields.map((field) => [field.name, field]));
+    const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
+    if (!parts) return;
+    const { scene, bootstrap, schema, ui, fieldMap } = parts;
 
     const defaults = bootstrap.defaults || {};
     const options = bootstrap.options || {};
