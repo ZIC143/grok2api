@@ -125,6 +125,28 @@ function applyFieldRenderPlan(parts, renderPlan = []) {
   });
 }
 
+function applyFieldUiPlan(parts, uiPlan = []) {
+  if (!parts || !Array.isArray(uiPlan)) return;
+  applySceneFields(parts, {
+    fieldHandlers: uiPlan.map((entry) => ({
+      fieldName: entry && entry.fieldName,
+      apply: (field) => {
+        if (!entry || !entry.element || !field || !field.ui) return;
+        const title = field.ui.description || field.ui.label;
+        if (title) {
+          window.SchemaUI.setTitle(entry.element, title);
+        }
+        if (entry.placeholderElement && field.ui.label && !entry.placeholderElement.placeholder) {
+          entry.placeholderElement.placeholder = field.ui.label;
+        }
+        if (typeof entry.apply === 'function') {
+          entry.apply(field, parts);
+        }
+      },
+    })),
+  });
+}
+
 function applyBootstrapDefaults(parts, options = {}) {
   if (!parts) return;
   const { bootstrap, fieldMap } = parts;
@@ -215,6 +237,7 @@ window.SceneAssembly = {
   applySceneSections,
   applySceneFields,
   applyFieldRenderPlan,
+  applyFieldUiPlan,
   applyBootstrapDefaults,
   applyScenePresentation,
   applyScenePresentationPlan,

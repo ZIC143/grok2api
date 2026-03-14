@@ -100,8 +100,6 @@
     if (imageField && imageField.format === 'url-or-data-uri' && imageUrlInput) {
       imageUrlInput.pattern = '^(https?://.+|data:.+)$';
     }
-    window.SchemaUI.setTitle(statusText, ui.description);
-
     window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
         statusElement: statusText,

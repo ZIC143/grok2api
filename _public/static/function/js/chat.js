@@ -49,15 +49,6 @@
 
   let sessionsData = null;
 
-  function applyChatFieldUi(fieldMap, fieldName, element) {
-    const field = fieldMap.get(fieldName);
-    if (!field || !field.ui || !element) return;
-    window.SchemaUI.setTitle(element, field.ui.description || field.ui.label);
-    if ('placeholder' in element && field.ui.label && !element.placeholder) {
-      element.placeholder = field.ui.label;
-    }
-  }
-
   function applyChatFieldSchema(fieldMap) {
     window.SceneAssembly.applyFieldRenderPlan({ fieldMap }, [
       { fieldName: 'temperature', kind: 'range', element: tempRange, labelElement: tempLabel },
@@ -136,16 +127,14 @@
     });
     updateRangeValues();
 
-    window.SceneAssembly.applySceneFields(parts, {
-      fieldHandlers: [
-        { fieldName: 'model', apply: () => applyChatFieldUi(fieldMap, 'model', modelChip) },
-        { fieldName: 'messages', apply: () => applyChatFieldUi(fieldMap, 'messages', promptInput) },
-        { fieldName: 'temperature', apply: () => applyChatFieldUi(fieldMap, 'temperature', tempRange) },
-        { fieldName: 'top_p', apply: () => applyChatFieldUi(fieldMap, 'top_p', topPRange) },
-        { fieldName: 'reasoning_effort', apply: () => applyChatFieldUi(fieldMap, 'reasoning_effort', settingsToggle) },
-        { fieldName: 'messages', apply: () => applyChatFieldUi(fieldMap, 'messages', attachBtn) },
-      ],
-    });
+    window.SceneAssembly.applyFieldUiPlan(parts, [
+      { fieldName: 'model', element: modelChip },
+      { fieldName: 'messages', element: promptInput, placeholderElement: promptInput },
+      { fieldName: 'temperature', element: tempRange },
+      { fieldName: 'top_p', element: topPRange },
+      { fieldName: 'reasoning_effort', element: settingsToggle },
+      { fieldName: 'messages', element: attachBtn },
+    ]);
     applyChatFieldSchema(fieldMap);
 
     if (promptInput && ui.title) {
@@ -171,9 +160,6 @@
         advanced: window.SceneAssembly.resolveFieldContainer(topPRange),
       },
     });
-    if (chatTitle && ui.title) {
-      chatTitle.textContent = ui.title;
-    }
   }
 
   function generateId() {

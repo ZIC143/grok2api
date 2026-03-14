@@ -85,7 +85,6 @@
       { fieldName: 'prompt', kind: 'text', element: promptInput, widthTarget: window.SceneAssembly.resolveFieldContainer(promptInput) },
     ]);
     window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
-    window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 
     if (concurrentLabel && !concurrentField) {
       window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
