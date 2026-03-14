@@ -8,6 +8,20 @@ function json(data, init = {}) {
   });
 }
 
+function unauthorized(detail) {
+  return json(
+    {
+      detail,
+    },
+    {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': 'Bearer',
+      },
+    }
+  );
+}
+
 const CONFIG_KEY = 'grok2api:config:runtime';
 const FLAGS_KEY = 'grok2api:runtime:flags';
 const NOTES_KEY = 'grok2api:runtime:notes';
@@ -186,6 +200,114 @@ const DEFAULT_RUNTIME_CONFIG = {
 
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function timingSafeEqual(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string') {
+    return false;
+  }
+
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  if (leftBytes.length !== rightBytes.length) {
+    return false;
+  }
+
+  let diff = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    diff |= leftBytes[index] ^ rightBytes[index];
+  }
+  return diff === 0;
+}
+
+function getBearerToken(request) {
+  const authorization = request.headers.get('authorization') || '';
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
+function normalizeApiKeys(value) {
+  if (!value) {
+    return [];
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+  return [];
+}
+
+async function verifyAdminRequest(request, env) {
+  const runtimeConfig = await getRuntimeConfig(env);
+  const appKey = String(runtimeConfig.config.app?.app_key || '').trim();
+  const token = getBearerToken(request);
+
+  if (!appKey) {
+    return {
+      ok: false,
+      response: unauthorized('App key is not configured'),
+      runtimeConfig,
+    };
+  }
+
+  if (!token) {
+    return {
+      ok: false,
+      response: unauthorized('Missing authentication token'),
+      runtimeConfig,
+    };
+  }
+
+  if (!timingSafeEqual(token, appKey)) {
+    return {
+      ok: false,
+      response: unauthorized('Invalid authentication token'),
+      runtimeConfig,
+    };
+  }
+
+  return { ok: true, runtimeConfig, token };
+}
+
+async function verifyFunctionRequest(request, env) {
+  const runtimeConfig = await getRuntimeConfig(env);
+  const functionKey = String(runtimeConfig.config.app?.function_key || '').trim();
+  const functionEnabled = Boolean(runtimeConfig.config.app?.function_enabled);
+  const token = getBearerToken(request);
+
+  if (!functionKey) {
+    if (functionEnabled) {
+      return { ok: true, runtimeConfig, token: '' };
+    }
+    return {
+      ok: false,
+      response: unauthorized('Function access is disabled'),
+      runtimeConfig,
+    };
+  }
+
+  if (!token) {
+    return {
+      ok: false,
+      response: unauthorized('Missing authentication token'),
+      runtimeConfig,
+    };
+  }
+
+  if (!timingSafeEqual(token, functionKey)) {
+    return {
+      ok: false,
+      response: unauthorized('Invalid authentication token'),
+      runtimeConfig,
+    };
+  }
+
+  return { ok: true, runtimeConfig, token };
 }
 
 function isPlainObject(value) {
@@ -643,6 +765,9 @@ async function getOpenAIMetadata(env) {
     endpoints: {
       models: '/v1/models',
       model_detail: '/v1/models/:id',
+      admin_verify: '/v1/admin/verify',
+      function_verify: '/v1/function/verify',
+      admin_config: '/v1/admin/config',
       runtime_status: '/v1/runtime/status',
       runtime_checks: '/v1/runtime/checks',
       runtime_storage: '/v1/runtime/storage',
@@ -652,6 +777,9 @@ async function getOpenAIMetadata(env) {
     capabilities: {
       models_list: true,
       model_detail: true,
+      admin_verify: true,
+      function_verify: true,
+      admin_config: true,
       runtime_status: true,
       runtime_checks: true,
       runtime_storage: true,
@@ -700,9 +828,70 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
+    }
+
+    if (url.pathname === '/v1/admin/verify' && request.method === 'GET') {
+      const auth = await verifyAdminRequest(request, env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+      return json({ status: 'success' });
+    }
+
+    if (url.pathname === '/v1/function/verify' && request.method === 'GET') {
+      const auth = await verifyFunctionRequest(request, env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+      return json({ status: 'success' });
+    }
+
+    if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
+      const auth = await verifyAdminRequest(request, env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+      return json(auth.runtimeConfig.config);
+    }
+
+    if (url.pathname === '/v1/admin/config' && request.method === 'POST') {
+      const auth = await verifyAdminRequest(request, env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      let payload;
+      try {
+        payload = await request.json();
+      } catch {
+        return json({ detail: 'invalid-json' }, { status: 400 });
+      }
+
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return json({ detail: 'payload-must-be-object' }, { status: 400 });
+      }
+
+      const normalized = normalizeConfig(env, deepMerge(auth.runtimeConfig.config, payload));
+      const nextConfig = normalized.config;
+      nextConfig.runtime = {
+        ...nextConfig.runtime,
+        updated_at: new Date().toISOString(),
+      };
+
+      const saveResult = await saveRuntimeConfig(env, nextConfig);
+      if (!saveResult.ok) {
+        return json({ detail: saveResult.detail }, { status: 503 });
+      }
+
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_config', nextConfig);
+      }
+
+      return json({ status: 'success', message: '配置已更新', config: nextConfig });
     }
 
     if (url.pathname === '/v1/models' && request.method === 'GET') {
