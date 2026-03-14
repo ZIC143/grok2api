@@ -352,13 +352,9 @@
       throw new Error('invalid_reference');
     }
     const imageUrl = fileDataUrl || rawUrl;
-    const res = await fetch('/v1/function/video/start', {
-      method: 'POST',
-      headers: {
-        ...buildAuthHeaders(authHeader),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+    const data = await window.AdminAuth.postFunctionJsonExpectJson(
+      '/v1/function/video/start',
+      {
         prompt,
         image_url: imageUrl || null,
         reasoning_effort: defaultReasoningEffort,
@@ -366,13 +362,12 @@
         video_length: lengthSelect ? parseInt(lengthSelect.value, 10) : 6,
         resolution_name: resolutionSelect ? resolutionSelect.value : '480p',
         preset: presetSelect ? presetSelect.value : 'normal'
-      })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Failed to create task');
-    }
-    const data = await res.json();
+      },
+      {
+        headers: buildAuthHeaders(authHeader),
+        errorMessage: 'Failed to create task',
+      }
+    );
     return data && data.task_id ? String(data.task_id) : '';
   }
 

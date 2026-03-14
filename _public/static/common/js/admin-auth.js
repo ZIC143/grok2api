@@ -337,6 +337,15 @@ async function postFunctionJson(url, payload, options = {}) {
   });
 }
 
+async function postFunctionJsonExpectJson(url, payload, options = {}) {
+  const res = await postFunctionJson(url, payload, options);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || options.errorMessage || 'Request failed');
+  }
+  return res.json();
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -353,6 +362,7 @@ window.AdminAuth = {
   withFunctionAuth,
   buildFunctionJsonHeaders,
   postFunctionJson,
+  postFunctionJsonExpectJson,
   buildAuthHeaders,
   logout,
   functionLogout,

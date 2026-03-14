@@ -280,19 +280,14 @@
   }
 
   async function createImagineTask(prompt, ratio, authHeader, nsfwEnabled) {
-    const res = await fetch('/v1/function/imagine/start', {
-      method: 'POST',
-      headers: {
-        ...buildAuthHeaders(authHeader),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ prompt, aspect_ratio: ratio, nsfw: nsfwEnabled })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Failed to create task');
-    }
-    const data = await res.json();
+    const data = await window.AdminAuth.postFunctionJsonExpectJson(
+      '/v1/function/imagine/start',
+      { prompt, aspect_ratio: ratio, nsfw: nsfwEnabled },
+      {
+        headers: buildAuthHeaders(authHeader),
+        errorMessage: 'Failed to create task',
+      }
+    );
     return data && data.task_id ? String(data.task_id) : '';
   }
 
