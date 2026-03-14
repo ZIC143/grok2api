@@ -580,6 +580,26 @@ export default {
       });
     }
 
+    if (url.pathname === '/config/reset' && request.method === 'POST') {
+      const nextConfig = buildDefaultConfig(env);
+      nextConfig.runtime = {
+        ...nextConfig.runtime,
+        updated_at: new Date().toISOString(),
+      };
+
+      const saveResult = await saveRuntimeConfig(env, nextConfig);
+      if (!saveResult.ok) {
+        return json({ status: 'error', message: saveResult.detail }, { status: 503 });
+      }
+
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_config', nextConfig);
+      }
+
+      return json({ status: 'ok', reset: true, config: nextConfig });
+    }
+
     if (url.pathname.startsWith('/config/') && request.method === 'POST') {
       const section = decodeURIComponent(url.pathname.slice('/config/'.length));
       if (!section || section === 'sections') {
@@ -629,26 +649,6 @@ export default {
         migrated: normalized.migrated,
         removed: normalized.removed,
       });
-    }
-
-    if (url.pathname === '/config/reset' && request.method === 'POST') {
-      const nextConfig = buildDefaultConfig(env);
-      nextConfig.runtime = {
-        ...nextConfig.runtime,
-        updated_at: new Date().toISOString(),
-      };
-
-      const saveResult = await saveRuntimeConfig(env, nextConfig);
-      if (!saveResult.ok) {
-        return json({ status: 'error', message: saveResult.detail }, { status: 503 });
-      }
-
-      const schema = await ensureD1Schema(env);
-      if (schema.ok) {
-        await upsertWorkerState(env, 'runtime_config', nextConfig);
-      }
-
-      return json({ status: 'ok', reset: true, config: nextConfig });
     }
 
     if (url.pathname === '/storage') {
