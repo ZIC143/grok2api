@@ -789,6 +789,17 @@ async function handleFunctionChatCompletions(request, env) {
     return json({ detail: 'payload-must-be-object' }, { status: 400 });
   }
 
+  if (!payload.model || !Array.isArray(payload.messages) || payload.messages.length === 0) {
+    return json(
+      {
+        detail: 'model-and-messages-required',
+        message: 'Chat bridge requires model and at least one message',
+        code: 'invalid_chat_payload',
+      },
+      { status: 400 }
+    );
+  }
+
   const requestedStream = payload.stream !== undefined
     ? Boolean(payload.stream)
     : Boolean(auth.runtimeConfig.config.app?.stream);
@@ -808,6 +819,9 @@ async function handleFunctionChatCompletions(request, env) {
   if (bridge.configured) {
     try {
       const backendUrl = new URL(bridge.backend_url);
+      if (!/^https?:$/i.test(backendUrl.protocol)) {
+        throw new Error('invalid_backend_protocol');
+      }
       const targetUrl = new URL('/chat/completions', backendUrl);
       const forwardHeaders = new Headers({
         'content-type': 'application/json',
@@ -825,6 +839,7 @@ async function handleFunctionChatCompletions(request, env) {
         headers: {
           'content-type': contentType,
           'cache-control': 'no-store',
+          'x-grok2api-chat-bridge': 'backend-forward',
         },
       });
     } catch (error) {
@@ -855,6 +870,10 @@ async function handleFunctionChatCompletions(request, env) {
       reasoning_effort: payload.reasoning_effort || null,
       temperature: payload.temperature ?? null,
       top_p: payload.top_p ?? null,
+    },
+  }, {
+    headers: {
+      'x-grok2api-chat-bridge': 'probe',
     },
   });
 }
