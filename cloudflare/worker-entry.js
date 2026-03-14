@@ -10,6 +10,24 @@ function json(data, init = {}) {
 
 const CONFIG_KEY = 'grok2api:config:runtime';
 
+const MODEL_CATALOG = [
+  { id: 'grok-3', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-3-mini', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-3-thinking', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-4', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-4-thinking', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-4-heavy', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'super', cost: 'high' },
+  { id: 'grok-4.1-mini', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-4.1-fast', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-4.1-expert', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'high' },
+  { id: 'grok-4.1-thinking', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'high' },
+  { id: 'grok-4.20-beta', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
+  { id: 'grok-imagine-1.0-fast', owned_by: 'grok2api@cloudflare', mode: 'image', tier: 'basic', cost: 'high' },
+  { id: 'grok-imagine-1.0', owned_by: 'grok2api@cloudflare', mode: 'image', tier: 'basic', cost: 'high' },
+  { id: 'grok-imagine-1.0-edit', owned_by: 'grok2api@cloudflare', mode: 'image_edit', tier: 'basic', cost: 'high' },
+  { id: 'grok-imagine-1.0-video', owned_by: 'grok2api@cloudflare', mode: 'video', tier: 'basic', cost: 'high' },
+];
+
 const DEFAULT_RUNTIME_CONFIG = {
   app: {
     app_url: '',
@@ -458,6 +476,24 @@ async function runStorageCheck(env) {
   return result;
 }
 
+async function getRuntimeStatus(env) {
+  const [runtimeConfig, snapshot, checks] = await Promise.all([
+    getRuntimeConfig(env),
+    getStorageSnapshot(env),
+    runStorageCheck(env),
+  ]);
+
+  return {
+    app: env.APP_NAME || 'grok2api',
+    environment: env.APP_ENV || 'unknown',
+    source: runtimeConfig.source,
+    migrated: runtimeConfig.migrated,
+    removed: runtimeConfig.removed,
+    checks,
+    storage: snapshot,
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -493,9 +529,32 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/models', '/v1/runtime/status'],
         sections: Object.keys(runtimeConfig.config),
       });
+    }
+
+    if (url.pathname === '/v1/models' && request.method === 'GET') {
+      return json({
+        object: 'list',
+        data: MODEL_CATALOG.map((model) => ({
+          id: model.id,
+          object: 'model',
+          created: 0,
+          owned_by: model.owned_by,
+          metadata: {
+            mode: model.mode,
+            tier: model.tier,
+            cost: model.cost,
+            runtime: 'cloudflare-workers-bridge',
+          },
+        })),
+      });
+    }
+
+    if (url.pathname === '/v1/runtime/status' && request.method === 'GET') {
+      const status = await getRuntimeStatus(env);
+      return json({ status: 'ok', runtime: status });
     }
 
     if (url.pathname === '/config/sections' && request.method === 'GET') {
