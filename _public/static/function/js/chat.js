@@ -41,8 +41,104 @@
   const feedbackUrl = 'https://github.com/chenyme/grok2api/issues/new';
   const CHAT_COMPLETIONS_ENDPOINT = '/v1/function/chat/completions';
   const DEFAULT_SESSION_TITLES = ['新会话', 'New Session'];
+  const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
 
   let sessionsData = null;
+  let manifestCache = null;
+
+  async function loadFunctionManifest() {
+    if (manifestCache) return manifestCache;
+    try {
+      const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('manifest fetch failed');
+      manifestCache = await res.json();
+      return manifestCache;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setElementTitle(element, value) {
+    if (!element || !value) return;
+    element.title = String(value);
+  }
+
+  function applyChatFieldUi(fieldMap, fieldName, element) {
+    const field = fieldMap.get(fieldName);
+    if (!field || !field.ui || !element) return;
+    setElementTitle(element, field.ui.description || field.ui.label);
+    if ('placeholder' in element && field.ui.label && !element.placeholder) {
+      element.placeholder = field.ui.label;
+    }
+  }
+
+  function applyChatManifest(manifest) {
+    const scene = manifest && manifest.scenes && manifest.scenes.chat;
+    if (!scene) return;
+
+    const bootstrap = scene.bootstrap || {};
+    const schema = scene.schema || {};
+    const ui = scene.ui || {};
+    const fields = Array.isArray(schema.fields) ? schema.fields : [];
+    const fieldMap = new Map(fields.map((field) => [field.name, field]));
+
+    const availableModels = Array.isArray(bootstrap.models && bootstrap.models.available)
+      ? bootstrap.models.available
+      : [];
+    const preferredModel = bootstrap.models && bootstrap.models.preferred
+      ? String(bootstrap.models.preferred)
+      : '';
+    if (availableModels.length) {
+      modelList = availableModels.slice();
+      modelValue = modelList.includes(preferredModel)
+        ? preferredModel
+        : modelList[modelList.length - 1] || modelValue;
+      if (modelLabel) modelLabel.textContent = modelValue;
+      renderModelDropdown();
+      restoreSessionModel();
+    }
+
+    const defaults = bootstrap.defaults || {};
+    if (tempRange && Number.isFinite(Number(defaults.temperature))) {
+      tempRange.value = String(defaults.temperature);
+    }
+    if (topPRange && Number.isFinite(Number(defaults.top_p))) {
+      topPRange.value = String(defaults.top_p);
+    }
+    updateRangeValues();
+
+    if (systemInput && typeof defaults.custom_instruction === 'string' && !systemInput.value.trim()) {
+      systemInput.value = defaults.custom_instruction;
+    }
+
+    applyChatFieldUi(fieldMap, 'model', modelChip);
+    applyChatFieldUi(fieldMap, 'messages', promptInput);
+    applyChatFieldUi(fieldMap, 'temperature', tempRange);
+    applyChatFieldUi(fieldMap, 'top_p', topPRange);
+    applyChatFieldUi(fieldMap, 'reasoning_effort', settingsToggle);
+    applyChatFieldUi(fieldMap, 'messages', attachBtn);
+
+    if (promptInput && ui.title) {
+      promptInput.placeholder = ui.title;
+    }
+    if (statusText && ui.description) {
+      statusText.textContent = ui.description;
+      statusText.title = ui.description;
+    }
+    if (sendBtn && ui.submit_label) {
+      sendBtn.textContent = ui.submit_label;
+      sendBtn.title = ui.submit_label;
+    }
+    if (settingsPanel && Array.isArray(schema.sections)) {
+      const layoutSummary = schema.sections
+        .map((section) => `${section.label}${section.description ? `：${section.description}` : ''}`)
+        .join(' | ');
+      if (layoutSummary) {
+        settingsPanel.dataset.layoutHint = layoutSummary;
+        settingsPanel.title = layoutSummary;
+      }
+    }
+  }
 
   function generateId() {
     return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -1349,6 +1445,22 @@
     if (!modelDropdown) return;
     const fallback = ['grok-4.1-fast', 'grok-4', 'grok-3', 'grok-3-mini', 'grok-3-thinking', 'grok-4.20-beta', 'grok-imagine-1.0-fast'];
     const preferred = 'grok-4.20-beta';
+    const manifest = await loadFunctionManifest();
+    const manifestScene = manifest && manifest.scenes && manifest.scenes.chat;
+    const manifestModels = Array.isArray(manifestScene && manifestScene.bootstrap && manifestScene.bootstrap.models && manifestScene.bootstrap.models.available)
+      ? manifestScene.bootstrap.models.available
+      : [];
+    const manifestPreferred = manifestScene && manifestScene.bootstrap && manifestScene.bootstrap.models
+      ? manifestScene.bootstrap.models.preferred
+      : '';
+    if (manifestModels.length) {
+      modelList = manifestModels.slice();
+      modelValue = modelList.includes(manifestPreferred) ? manifestPreferred : (modelList[modelList.length - 1] || preferred);
+      if (modelLabel) modelLabel.textContent = modelValue;
+      renderModelDropdown();
+      restoreSessionModel();
+      return;
+    }
     try {
       const res = await fetch('/v1/models', { cache: 'no-store' });
       if (!res.ok) throw new Error('models fetch failed');
@@ -1815,8 +1927,6 @@
     }
   }
 
-  updateRangeValues();
-  loadModels();
   bindEvents();
   restoreSidebarState();
 
@@ -1831,6 +1941,13 @@
       window.location.href = '/login';
       return;
     }
+    const manifest = await loadFunctionManifest();
+    if (manifest) {
+      applyChatManifest(manifest);
+    } else {
+      updateRangeValues();
+    }
+    await loadModels();
     loadSessions();
   })();
 })();

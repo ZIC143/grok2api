@@ -33,6 +33,7 @@
   let connectionMode = 'ws';
   let modePreference = 'auto';
   const MODE_STORAGE_KEY = 'imagine_mode';
+  const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
   let pendingFallbackTimer = null;
   let currentTaskIds = [];
   let directoryHandle = null;
@@ -42,6 +43,79 @@
   let streamSequence = 0;
   const streamImageMap = new Map();
   let finalMinBytesDefault = 100000;
+  let manifestCache = null;
+
+  async function loadFunctionManifest() {
+    if (manifestCache) return manifestCache;
+    try {
+      const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('manifest fetch failed');
+      manifestCache = await res.json();
+      return manifestCache;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setElementTitle(element, value) {
+    if (!element || !value) return;
+    element.title = String(value);
+  }
+
+  function setSelectOptions(select, options, preferred) {
+    if (!select || !Array.isArray(options) || options.length === 0) return;
+    const current = preferred && options.includes(preferred) ? preferred : (options.includes(select.value) ? select.value : options[0]);
+    select.innerHTML = '';
+    options.forEach((optionValue) => {
+      const option = document.createElement('option');
+      option.value = String(optionValue);
+      option.textContent = String(optionValue);
+      if (String(optionValue) === String(current)) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    select.value = String(current);
+  }
+
+  function applyImagineManifest(manifest) {
+    const scene = manifest && manifest.scenes && manifest.scenes.imagine;
+    if (!scene) return;
+    const bootstrap = scene.bootstrap || {};
+    const schema = scene.schema || {};
+    const fields = Array.isArray(schema.fields) ? schema.fields : [];
+    const fieldMap = new Map(fields.map((field) => [field.name, field]));
+
+    if (Number.isFinite(Number(bootstrap.final_min_bytes))) {
+      finalMinBytesDefault = Number(bootstrap.final_min_bytes);
+    }
+
+    const defaults = bootstrap.defaults || {};
+    const options = bootstrap.options || {};
+
+    setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '2:3');
+    if (nsfwSelect && typeof defaults.nsfw === 'boolean') {
+      nsfwSelect.value = defaults.nsfw ? 'true' : 'false';
+    }
+
+    const concurrentField = fieldMap.get('concurrent');
+    if (concurrentSelect && concurrentField && Array.isArray(concurrentField.options)) {
+      setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
+    }
+
+    if (promptInput) {
+      promptInput.placeholder = (fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.label) || promptInput.placeholder;
+      setElementTitle(promptInput, fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.description);
+    }
+    setElementTitle(ratioSelect, fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui && fieldMap.get('aspect_ratio').ui.description);
+    setElementTitle(nsfwSelect, fieldMap.get('nsfw') && fieldMap.get('nsfw').ui && fieldMap.get('nsfw').ui.description);
+    setElementTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
+    setElementTitle(statusText, scene.ui && scene.ui.description);
+    if (startBtn && scene.ui && scene.ui.submit_label) {
+      startBtn.textContent = scene.ui.submit_label;
+      startBtn.title = scene.ui.submit_label;
+    }
+  }
 
   function toast(message, type) {
     if (typeof showToast === 'function') {
@@ -110,6 +184,11 @@
   function updateModeValue() {}
 
   async function loadFilterDefaults() {
+    const manifest = await loadFunctionManifest();
+    if (manifest) {
+      applyImagineManifest(manifest);
+      return;
+    }
     try {
       const res = await fetch('/v1/function/imagine/config', { cache: 'no-store' });
       if (!res.ok) return;

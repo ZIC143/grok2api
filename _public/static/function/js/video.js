@@ -23,6 +23,7 @@
   const presetValue = document.getElementById('presetValue');
   const videoEmpty = document.getElementById('videoEmpty');
   const videoStage = document.getElementById('videoStage');
+  const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
 
   let currentSource = null;
   let currentTaskId = '';
@@ -36,7 +37,79 @@
   let lastProgress = 0;
   let currentPreviewItem = null;
   let previewCount = 0;
-  const DEFAULT_REASONING_EFFORT = 'low';
+  let defaultReasoningEffort = 'low';
+  let manifestCache = null;
+
+  async function loadFunctionManifest() {
+    if (manifestCache) return manifestCache;
+    try {
+      const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('manifest fetch failed');
+      manifestCache = await res.json();
+      return manifestCache;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setElementTitle(element, value) {
+    if (!element || !value) return;
+    element.title = String(value);
+  }
+
+  function setSelectOptions(select, options, preferred, formatter) {
+    if (!select || !Array.isArray(options) || options.length === 0) return;
+    const current = preferred && options.map(String).includes(String(preferred))
+      ? String(preferred)
+      : (options.map(String).includes(String(select.value)) ? String(select.value) : String(options[0]));
+    select.innerHTML = '';
+    options.forEach((optionValue) => {
+      const normalized = String(optionValue);
+      const option = document.createElement('option');
+      option.value = normalized;
+      option.textContent = typeof formatter === 'function' ? formatter(optionValue) : normalized;
+      if (normalized === current) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    select.value = current;
+  }
+
+  function applyVideoManifest(manifest) {
+    const scene = manifest && manifest.scenes && manifest.scenes.video;
+    if (!scene) return;
+    const bootstrap = scene.bootstrap || {};
+    const schema = scene.schema || {};
+    const ui = scene.ui || {};
+    const fields = Array.isArray(schema.fields) ? schema.fields : [];
+    const fieldMap = new Map(fields.map((field) => [field.name, field]));
+
+    const defaults = bootstrap.defaults || {};
+    const options = bootstrap.options || {};
+
+    defaultReasoningEffort = String(defaults.reasoning_effort || defaultReasoningEffort);
+    setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '3:2');
+    setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
+    setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
+    setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
+
+    if (promptInput) {
+      promptInput.placeholder = (fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.label) || promptInput.placeholder;
+      setElementTitle(promptInput, fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.description);
+    }
+    setElementTitle(ratioSelect, fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui && fieldMap.get('aspect_ratio').ui.description);
+    setElementTitle(lengthSelect, fieldMap.get('video_length') && fieldMap.get('video_length').ui && fieldMap.get('video_length').ui.description);
+    setElementTitle(resolutionSelect, fieldMap.get('resolution_name') && fieldMap.get('resolution_name').ui && fieldMap.get('resolution_name').ui.description);
+    setElementTitle(presetSelect, fieldMap.get('preset') && fieldMap.get('preset').ui && fieldMap.get('preset').ui.description);
+    setElementTitle(imageUrlInput, fieldMap.get('image_url') && fieldMap.get('image_url').ui && fieldMap.get('image_url').ui.description);
+    setElementTitle(statusText, ui.description);
+    if (startBtn && ui.submit_label) {
+      startBtn.textContent = ui.submit_label;
+      startBtn.title = ui.submit_label;
+    }
+    updateMeta();
+  }
 
   function toast(message, type) {
     if (typeof showToast === 'function') {
@@ -275,7 +348,7 @@
       body: JSON.stringify({
         prompt,
         image_url: imageUrl || null,
-        reasoning_effort: DEFAULT_REASONING_EFFORT,
+        reasoning_effort: defaultReasoningEffort,
         aspect_ratio: ratioSelect ? ratioSelect.value : '3:2',
         video_length: lengthSelect ? parseInt(lengthSelect.value, 10) : 6,
         resolution_name: resolutionSelect ? resolutionSelect.value : '480p',
@@ -661,5 +734,12 @@
     });
   }
 
-  updateMeta();
+  (async () => {
+    const manifest = await loadFunctionManifest();
+    if (manifest) {
+      applyVideoManifest(manifest);
+    } else {
+      updateMeta();
+    }
+  })();
 })();
