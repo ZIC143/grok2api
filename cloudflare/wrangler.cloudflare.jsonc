@@ -18,6 +18,7 @@
     }
   ],
   "vars": {
+    "APP_NAME": "grok2api",
     "APP_ENV": "__CF_ENVIRONMENT__"
   }
 }
