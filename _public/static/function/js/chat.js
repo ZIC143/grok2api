@@ -90,14 +90,8 @@
     const parts = window.SceneAssembly.getSceneParts(manifest, 'chat');
     if (!parts) return;
 
-    const { bootstrap, ui, fieldMap } = parts;
-
-    const availableModels = Array.isArray(bootstrap.models && bootstrap.models.available)
-      ? bootstrap.models.available
-      : [];
-    const preferredModel = bootstrap.models && bootstrap.models.preferred
-      ? String(bootstrap.models.preferred)
-      : '';
+    const { ui, fieldMap } = parts;
+    const { available: availableModels, preferred: preferredModel } = window.SceneAssembly.getBootstrapModelConfig(parts);
     if (availableModels.length) {
       modelList = availableModels.slice();
       modelValue = modelList.includes(preferredModel)
@@ -1492,13 +1486,8 @@
     const fallback = ['grok-4.1-fast', 'grok-4', 'grok-3', 'grok-3-mini', 'grok-3-thinking', 'grok-4.20-beta', 'grok-imagine-1.0-fast'];
     const preferred = 'grok-4.20-beta';
     const manifest = await window.FunctionManifestClient.load();
-    const manifestScene = manifest && manifest.scenes && manifest.scenes.chat;
-    const manifestModels = Array.isArray(manifestScene && manifestScene.bootstrap && manifestScene.bootstrap.models && manifestScene.bootstrap.models.available)
-      ? manifestScene.bootstrap.models.available
-      : [];
-    const manifestPreferred = manifestScene && manifestScene.bootstrap && manifestScene.bootstrap.models
-      ? manifestScene.bootstrap.models.preferred
-      : '';
+    const manifestParts = window.SceneAssembly.getSceneParts(manifest, 'chat');
+    const { available: manifestModels, preferred: manifestPreferred } = window.SceneAssembly.getBootstrapModelConfig(manifestParts);
     if (manifestModels.length) {
       modelList = manifestModels.slice();
       modelValue = modelList.includes(manifestPreferred) ? manifestPreferred : (modelList[modelList.length - 1] || preferred);

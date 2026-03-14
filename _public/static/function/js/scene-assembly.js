@@ -123,6 +123,17 @@ function applyScenePresentation(parts, options = {}) {
   applySceneSections(parts, options.sections || {});
 }
 
+function getBootstrapModelConfig(parts) {
+  if (!parts || !parts.bootstrap || !parts.bootstrap.models) {
+    return { available: [], preferred: '' };
+  }
+  const models = parts.bootstrap.models;
+  return {
+    available: Array.isArray(models.available) ? models.available.slice() : [],
+    preferred: models.preferred ? String(models.preferred) : '',
+  };
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
@@ -132,4 +143,5 @@ window.SceneAssembly = {
   applySceneFields,
   applyBootstrapDefaults,
   applyScenePresentation,
+  getBootstrapModelConfig,
 };
