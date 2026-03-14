@@ -134,6 +134,13 @@ function getBootstrapModelConfig(parts) {
   };
 }
 
+function getBootstrapNumber(parts, key, fallback = null) {
+  if (!parts || !parts.bootstrap || !key) return fallback;
+  const raw = parts.bootstrap[key];
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
@@ -144,4 +151,5 @@ window.SceneAssembly = {
   applyBootstrapDefaults,
   applyScenePresentation,
   getBootstrapModelConfig,
+  getBootstrapNumber,
 };

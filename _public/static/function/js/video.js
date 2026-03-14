@@ -48,7 +48,7 @@
   function applyVideoManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
     if (!parts) return;
-    const { bootstrap, ui, fieldMap } = parts;
+    const { ui, fieldMap } = parts;
 
     const lengthField = fieldMap.get('video_length');
     const imageField = fieldMap.get('image_url');

@@ -51,10 +51,11 @@
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
-    const { scene, bootstrap, fieldMap } = parts;
+    const { scene, fieldMap } = parts;
 
-    if (Number.isFinite(Number(bootstrap.final_min_bytes))) {
-      finalMinBytesDefault = Number(bootstrap.final_min_bytes);
+    const manifestMinBytes = window.SceneAssembly.getBootstrapNumber(parts, 'final_min_bytes');
+    if (manifestMinBytes !== null) {
+      finalMinBytesDefault = manifestMinBytes;
     }
 
     window.SceneAssembly.applyBootstrapDefaults(parts, {
