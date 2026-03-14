@@ -38,7 +38,6 @@
   let connectionMode = 'ws';
   let modePreference = 'auto';
   const MODE_STORAGE_KEY = 'imagine_mode';
-  const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
   let pendingFallbackTimer = null;
   let currentTaskIds = [];
   let directoryHandle = null;
@@ -48,18 +47,9 @@
   let streamSequence = 0;
   const streamImageMap = new Map();
   let finalMinBytesDefault = 100000;
-  let manifestCache = null;
 
   async function loadFunctionManifest() {
-    if (manifestCache) return manifestCache;
-    try {
-      const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
-      if (!res.ok) throw new Error('manifest fetch failed');
-      manifestCache = await res.json();
-      return manifestCache;
-    } catch (e) {
-      return null;
-    }
+    return window.FunctionManifestClient.load();
   }
 
   function applyImagineManifest(manifest) {

@@ -23,7 +23,6 @@
   const presetValue = document.getElementById('presetValue');
   const videoEmpty = document.getElementById('videoEmpty');
   const videoStage = document.getElementById('videoStage');
-  const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
   const ratioLabel = document.querySelector('label[for="ratioSelect"]');
   const lengthLabel = document.querySelector('label[for="lengthSelect"]');
   const resolutionLabel = document.querySelector('label[for="resolutionSelect"]');
@@ -45,18 +44,9 @@
   let currentPreviewItem = null;
   let previewCount = 0;
   let defaultReasoningEffort = 'low';
-  let manifestCache = null;
 
   async function loadFunctionManifest() {
-    if (manifestCache) return manifestCache;
-    try {
-      const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
-      if (!res.ok) throw new Error('manifest fetch failed');
-      manifestCache = await res.json();
-      return manifestCache;
-    } catch (e) {
-      return null;
-    }
+    return window.FunctionManifestClient.load();
   }
 
   function applyVideoManifest(manifest) {

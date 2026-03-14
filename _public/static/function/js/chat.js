@@ -46,21 +46,11 @@
   const feedbackUrl = 'https://github.com/chenyme/grok2api/issues/new';
   const CHAT_COMPLETIONS_ENDPOINT = '/v1/function/chat/completions';
   const DEFAULT_SESSION_TITLES = ['新会话', 'New Session'];
-  const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
 
   let sessionsData = null;
-  let manifestCache = null;
 
   async function loadFunctionManifest() {
-    if (manifestCache) return manifestCache;
-    try {
-      const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
-      if (!res.ok) throw new Error('manifest fetch failed');
-      manifestCache = await res.json();
-      return manifestCache;
-    } catch (e) {
-      return null;
-    }
+    return window.FunctionManifestClient.load();
   }
 
   function applyChatFieldUi(fieldMap, fieldName, element) {
