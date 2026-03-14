@@ -8,6 +8,7 @@ def main() -> int:
     parser.add_argument("--resources", required=True)
     parser.add_argument("--worker-name", required=True)
     parser.add_argument("--environment", required=True)
+    parser.add_argument("--worker-url", required=False, default="")
     args = parser.parse_args()
 
     resources_path = Path(args.resources)
@@ -15,7 +16,7 @@ def main() -> int:
         raise SystemExit(f"Resources file not found: {resources_path}")
 
     data = json.loads(resources_path.read_text(encoding="utf-8"))
-    worker_url = f"https://{args.worker_name}.workers.dev"
+    worker_url = args.worker_url.strip() or f"https://{args.worker_name}.workers.dev"
 
     print("Deployment summary")
     print(f"- environment: {args.environment}")

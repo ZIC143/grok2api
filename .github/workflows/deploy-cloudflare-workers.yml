@@ -39,6 +39,8 @@ jobs:
       CF_WRANGLER_TEMPLATE: cloudflare/wrangler.cloudflare.jsonc
       CF_WRANGLER_OUTPUT: .wrangler.generated.jsonc
       CF_RESOURCES_OUTPUT: cloudflare/resources.json
+      CF_DEPLOY_LOG: cloudflare/deploy-output.log
+      CF_DEPLOY_META: cloudflare/deploy-meta.json
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -105,20 +107,70 @@ jobs:
       - name: Deploy Worker
         shell: bash
         run: |
-          wrangler deploy --config "${CF_WRANGLER_OUTPUT}"
+          set -euo pipefail
+          mkdir -p cloudflare
+          wrangler deploy --config "${CF_WRANGLER_OUTPUT}" 2>&1 | tee "${CF_DEPLOY_LOG}"
+
+      - name: Extract deploy metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          log_path = Path(os.environ['CF_DEPLOY_LOG'])
+          out_path = Path(os.environ['CF_DEPLOY_META'])
+          text = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else ''
+          url_match = re.search(r'https://[A-Za-z0-9._/-]+\.workers\.dev(?:/[A-Za-z0-9._~:/?#\[\]@!$&\'\(\)\*\+,;=%-]*)?', text)
+          data = {
+              'worker_url': url_match.group(0).rstrip('/') if url_match else ''
+          }
+          out_path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+          print(json.dumps(data, indent=2))
+          PY
 
       - name: Health check
         shell: bash
         run: |
           set -euo pipefail
-          worker_url="https://${CF_WORKER_NAME}.workers.dev/health"
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          worker_url="${worker_url}/health"
           echo "Checking ${worker_url}"
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$worker_url"
 
       - name: Post deploy summary
         shell: bash
         run: |
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
           python scripts/cf_post_deploy.py \
             --resources "${CF_RESOURCES_OUTPUT}" \
             --worker-name "${CF_WORKER_NAME}" \
-            --environment "${CF_ENVIRONMENT}"
+            --environment "${CF_ENVIRONMENT}" \
+            --worker-url "$worker_url"
