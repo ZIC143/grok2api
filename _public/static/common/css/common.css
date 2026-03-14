@@ -189,6 +189,15 @@ td.table-empty {
   font-weight: 500;
 }
 
+.nav-link-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nav-link-disabled:hover {
+  color: var(--accents-4);
+}
+
 .nav-group {
   position: relative;
 }
