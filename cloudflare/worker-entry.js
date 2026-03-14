@@ -215,7 +215,7 @@ function getTaskCapabilitySummary(config) {
     scenes: {
       chat: {
         enabled: true,
-        execution_supported: false,
+        execution_supported: true,
         init_supported: true,
         models_supported: true,
         attachment_supported: true,
@@ -321,7 +321,7 @@ function getChatFormSchema(config) {
     scene: 'chat',
     endpoint: '/v1/function/chat/completions',
     method: 'POST',
-    submit_supported: false,
+    submit_supported: true,
     examples: {
       minimal: {
         model: chatInit.defaults.model,
@@ -505,7 +505,7 @@ function getFunctionAssemblyManifest(config) {
     version: 'phase-f',
     runtime: {
       worker_bridge_mode: 'frontend-assembly-manifest',
-      submit_supported: false,
+      submit_supported: true,
     },
     endpoints: {
       bootstrap: '/v1/function/bootstrap',
@@ -766,6 +766,55 @@ async function verifyFunctionRequest(request, env) {
   }
 
   return { ok: true, runtimeConfig, token };
+}
+
+async function handleFunctionChatCompletions(request, env) {
+  const auth = await verifyFunctionRequest(request, env);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ detail: 'invalid-json' }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return json({ detail: 'payload-must-be-object' }, { status: 400 });
+  }
+
+  const requestedStream = payload.stream !== undefined
+    ? Boolean(payload.stream)
+    : Boolean(auth.runtimeConfig.config.app?.stream);
+
+  if (requestedStream) {
+    return json(
+      {
+        status: 'error',
+        message: 'streaming-disabled-in-worker-bridge',
+        code: 'stream_not_supported',
+      },
+      { status: 400 }
+    );
+  }
+
+  return json({
+    status: 'accepted',
+    scene: 'chat',
+    bridge_mode: 'phase-i-non-stream-probe',
+    submit_supported: true,
+    execution_supported: true,
+    streaming_supported: false,
+    request_echo: {
+      model: payload.model || null,
+      message_count: Array.isArray(payload.messages) ? payload.messages.length : 0,
+      reasoning_effort: payload.reasoning_effort || null,
+      temperature: payload.temperature ?? null,
+      top_p: payload.top_p ?? null,
+    },
+  });
 }
 
 function isPlainObject(value) {
@@ -1396,6 +1445,10 @@ export default {
     if (url.pathname === '/v1/function/manifest' && request.method === 'GET') {
       const runtimeConfig = await getRuntimeConfig(env);
       return json(getFunctionAssemblyManifest(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/chat/completions' && request.method === 'POST') {
+      return handleFunctionChatCompletions(request, env);
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
