@@ -154,6 +154,135 @@ function buildDefaultConfig(env) {
   return config;
 }
 
+function pruneUnknownConfig(config, defaults) {
+  if (!isPlainObject(config)) {
+    return { config: {}, removed: { __root__: ['<section>'] } };
+  }
+
+  const pruned = {};
+  const removed = {};
+
+  for (const [section, value] of Object.entries(config)) {
+    if (!(section in defaults)) {
+      removed[section] = ['<section>'];
+      continue;
+    }
+
+    const defaultSection = defaults[section];
+    if (isPlainObject(defaultSection) && isPlainObject(value)) {
+      const kept = {};
+      const removedKeys = [];
+      for (const [key, sectionValue] of Object.entries(value)) {
+        if (key in defaultSection) {
+          kept[key] = sectionValue;
+        } else {
+          removedKeys.push(key);
+        }
+      }
+      if (Object.keys(kept).length > 0) {
+        pruned[section] = kept;
+      }
+      if (removedKeys.length > 0) {
+        removed[section] = removedKeys;
+      }
+      continue;
+    }
+
+    pruned[section] = value;
+  }
+
+  return { config: pruned, removed };
+}
+
+function migrateLegacyConfig(config) {
+  if (!isPlainObject(config)) {
+    return { config: {}, migrated: {} };
+  }
+
+  const next = deepClone(config);
+  const migrated = {};
+  const mapping = {
+    'grok.temporary': 'app.temporary',
+    'grok.disable_memory': 'app.disable_memory',
+    'grok.stream': 'app.stream',
+    'grok.thinking': 'app.thinking',
+    'grok.dynamic_statsig': 'app.dynamic_statsig',
+    'grok.filter_tags': 'app.filter_tags',
+    'grok.base_proxy_url': 'proxy.base_proxy_url',
+    'grok.asset_proxy_url': 'proxy.asset_proxy_url',
+    'grok.cf_clearance': 'proxy.cf_clearance',
+    'grok.browser': 'proxy.browser',
+    'grok.user_agent': 'proxy.user_agent',
+    'security.cf_clearance': 'proxy.cf_clearance',
+    'security.browser': 'proxy.browser',
+    'security.user_agent': 'proxy.user_agent',
+    'network.base_proxy_url': 'proxy.base_proxy_url',
+    'network.asset_proxy_url': 'proxy.asset_proxy_url',
+  };
+
+  for (const [source, target] of Object.entries(mapping)) {
+    const [sourceSection, sourceKey] = source.split('.');
+    const [targetSection, targetKey] = target.split('.');
+    if (!isPlainObject(next[sourceSection])) {
+      continue;
+    }
+    if (!(sourceKey in next[sourceSection])) {
+      continue;
+    }
+    if (!isPlainObject(next[targetSection])) {
+      next[targetSection] = {};
+    }
+    if (!(targetKey in next[targetSection])) {
+      next[targetSection][targetKey] = next[sourceSection][sourceKey];
+      migrated[source] = target;
+    }
+    delete next[sourceSection][sourceKey];
+    if (Object.keys(next[sourceSection]).length === 0) {
+      delete next[sourceSection];
+    }
+  }
+
+  if (isPlainObject(next.chat)) {
+    const legacyChatMap = {
+      temporary: 'temporary',
+      disable_memory: 'disable_memory',
+      stream: 'stream',
+      thinking: 'thinking',
+      dynamic_statsig: 'dynamic_statsig',
+      filter_tags: 'filter_tags',
+    };
+    if (!isPlainObject(next.app)) {
+      next.app = {};
+    }
+    for (const [oldKey, newKey] of Object.entries(legacyChatMap)) {
+      if (oldKey in next.chat && !(newKey in next.app)) {
+        next.app[newKey] = next.chat[oldKey];
+        migrated[`chat.${oldKey}`] = `app.${newKey}`;
+        delete next.chat[oldKey];
+      }
+    }
+    if (Object.keys(next.chat).length === 0) {
+      delete next.chat;
+    }
+  }
+
+  return { config: next, migrated };
+}
+
+function normalizeConfig(env, candidate) {
+  const defaults = buildDefaultConfig(env);
+  const migratedResult = migrateLegacyConfig(candidate);
+  const prunedResult = pruneUnknownConfig(migratedResult.config, defaults);
+  const merged = deepMerge(defaults, prunedResult.config);
+
+  return {
+    config: merged,
+    migrated: migratedResult.migrated,
+    removed: prunedResult.removed,
+    defaults,
+  };
+}
+
 async function ensureD1Schema(env) {
   if (!(env.DB && typeof env.DB.prepare === 'function')) {
     return { ok: false, detail: 'binding-missing' };
@@ -219,17 +348,27 @@ async function getRuntimeConfig(env) {
     return {
       source: 'default',
       config: defaultConfig,
+      migrated: {},
+      removed: {},
     };
   }
 
   const stored = await env.KV_CACHE.get(CONFIG_KEY, { type: 'json' });
   if (stored && typeof stored === 'object') {
-    return { source: 'kv', config: deepMerge(defaultConfig, stored) };
+    const normalized = normalizeConfig(env, stored);
+    return {
+      source: 'kv',
+      config: normalized.config,
+      migrated: normalized.migrated,
+      removed: normalized.removed,
+    };
   }
 
   return {
     source: 'default',
     config: defaultConfig,
+    migrated: {},
+    removed: {},
   };
 }
 
@@ -363,6 +502,8 @@ export default {
       const runtimeConfig = await getRuntimeConfig(env);
       return json({
         status: 'ok',
+        migrated: runtimeConfig.migrated,
+        removed: runtimeConfig.removed,
         sections: Object.fromEntries(
           Object.entries(runtimeConfig.config).map(([section, value]) => [
             section,
@@ -381,7 +522,24 @@ export default {
         status: 'ok',
         environment: env.APP_ENV || 'unknown',
         source: runtimeConfig.source,
+        migrated: runtimeConfig.migrated,
+        removed: runtimeConfig.removed,
         config: runtimeConfig.config,
+      });
+    }
+
+    if (url.pathname.startsWith('/config/') && request.method === 'GET' && url.pathname !== '/config/sections') {
+      const section = decodeURIComponent(url.pathname.slice('/config/'.length));
+      const runtimeConfig = await getRuntimeConfig(env);
+      if (!(section in runtimeConfig.config)) {
+        return json({ status: 'error', message: 'section-not-found', section }, { status: 404 });
+      }
+      return json({
+        status: 'ok',
+        section,
+        value: runtimeConfig.config[section],
+        migrated: runtimeConfig.migrated,
+        removed: runtimeConfig.removed,
       });
     }
 
@@ -398,9 +556,8 @@ export default {
       }
 
       const currentConfig = await getRuntimeConfig(env);
-      const nextConfig = {
-        ...deepMerge(currentConfig.config, payload),
-      };
+      const normalized = normalizeConfig(env, deepMerge(currentConfig.config, payload));
+      const nextConfig = normalized.config;
       nextConfig.runtime = {
         ...nextConfig.runtime,
         updated_at: new Date().toISOString(),
@@ -415,7 +572,83 @@ export default {
         await upsertWorkerState(env, 'runtime_config', nextConfig);
       }
 
-      return json({ status: 'ok', config: nextConfig });
+      return json({
+        status: 'ok',
+        config: nextConfig,
+        migrated: normalized.migrated,
+        removed: normalized.removed,
+      });
+    }
+
+    if (url.pathname.startsWith('/config/') && request.method === 'POST') {
+      const section = decodeURIComponent(url.pathname.slice('/config/'.length));
+      if (!section || section === 'sections') {
+        return json({ status: 'error', message: 'invalid-section' }, { status: 400 });
+      }
+
+      let payload;
+      try {
+        payload = await request.json();
+      } catch {
+        return json({ status: 'error', message: 'invalid-json' }, { status: 400 });
+      }
+
+      if (!isPlainObject(payload)) {
+        return json({ status: 'error', message: 'payload-must-be-object' }, { status: 400 });
+      }
+
+      const currentConfig = await getRuntimeConfig(env);
+      if (!(section in currentConfig.config)) {
+        return json({ status: 'error', message: 'section-not-found', section }, { status: 404 });
+      }
+
+      const normalized = normalizeConfig(env, {
+        ...currentConfig.config,
+        [section]: deepMerge(currentConfig.config[section], payload),
+      });
+      const nextConfig = normalized.config;
+      nextConfig.runtime = {
+        ...nextConfig.runtime,
+        updated_at: new Date().toISOString(),
+      };
+
+      const saveResult = await saveRuntimeConfig(env, nextConfig);
+      if (!saveResult.ok) {
+        return json({ status: 'error', message: saveResult.detail }, { status: 503 });
+      }
+
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_config', nextConfig);
+      }
+
+      return json({
+        status: 'ok',
+        section,
+        value: nextConfig[section],
+        migrated: normalized.migrated,
+        removed: normalized.removed,
+      });
+    }
+
+    if (url.pathname === '/config/reset' && request.method === 'POST') {
+      const nextConfig = buildDefaultConfig(env);
+      nextConfig.runtime = {
+        ...nextConfig.runtime,
+        updated_at: new Date().toISOString(),
+      };
+
+      const saveResult = await saveRuntimeConfig(env, nextConfig);
+      if (!saveResult.ok) {
+        return json({ status: 'error', message: saveResult.detail }, { status: 503 });
+      }
+
+      const schema = await ensureD1Schema(env);
+      if (schema.ok) {
+        await upsertWorkerState(env, 'runtime_config', nextConfig);
+      }
+
+      return json({ status: 'ok', reset: true, config: nextConfig });
     }
 
     if (url.pathname === '/storage') {
