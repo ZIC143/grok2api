@@ -48,10 +48,6 @@
   const streamImageMap = new Map();
   let finalMinBytesDefault = 100000;
 
-  async function loadFunctionManifest() {
-    return window.FunctionManifestClient.load();
-  }
-
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
@@ -188,11 +184,8 @@
   function updateModeValue() {}
 
   async function loadFilterDefaults() {
-    const manifest = await loadFunctionManifest();
-    if (manifest) {
-      applyImagineManifest(manifest);
-      return;
-    }
+    const manifest = await window.FunctionManifestClient.apply(applyImagineManifest);
+    if (manifest) return;
     try {
       const res = await fetch('/v1/function/imagine/config', { cache: 'no-store' });
       if (!res.ok) return;

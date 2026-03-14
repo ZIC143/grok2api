@@ -45,10 +45,6 @@
   let previewCount = 0;
   let defaultReasoningEffort = 'low';
 
-  async function loadFunctionManifest() {
-    return window.FunctionManifestClient.load();
-  }
-
   function applyVideoManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
     if (!parts) return;
@@ -750,11 +746,6 @@
   }
 
   (async () => {
-    const manifest = await loadFunctionManifest();
-    if (manifest) {
-      applyVideoManifest(manifest);
-    } else {
-      updateMeta();
-    }
+    await window.FunctionManifestClient.apply(applyVideoManifest, updateMeta);
   })();
 })();

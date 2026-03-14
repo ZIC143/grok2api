@@ -49,10 +49,6 @@
 
   let sessionsData = null;
 
-  async function loadFunctionManifest() {
-    return window.FunctionManifestClient.load();
-  }
-
   function applyChatFieldUi(fieldMap, fieldName, element) {
     const field = fieldMap.get(fieldName);
     if (!field || !field.ui || !element) return;
@@ -1495,7 +1491,7 @@
     if (!modelDropdown) return;
     const fallback = ['grok-4.1-fast', 'grok-4', 'grok-3', 'grok-3-mini', 'grok-3-thinking', 'grok-4.20-beta', 'grok-imagine-1.0-fast'];
     const preferred = 'grok-4.20-beta';
-    const manifest = await loadFunctionManifest();
+    const manifest = await window.FunctionManifestClient.load();
     const manifestScene = manifest && manifest.scenes && manifest.scenes.chat;
     const manifestModels = Array.isArray(manifestScene && manifestScene.bootstrap && manifestScene.bootstrap.models && manifestScene.bootstrap.models.available)
       ? manifestScene.bootstrap.models.available
@@ -1991,12 +1987,7 @@
       window.location.href = '/login';
       return;
     }
-    const manifest = await loadFunctionManifest();
-    if (manifest) {
-      applyChatManifest(manifest);
-    } else {
-      updateRangeValues();
-    }
+    await window.FunctionManifestClient.apply(applyChatManifest, updateRangeValues);
     await loadModels();
     loadSessions();
   })();

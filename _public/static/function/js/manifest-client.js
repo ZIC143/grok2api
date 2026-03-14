@@ -13,8 +13,23 @@ async function loadFunctionManifestShared() {
   }
 }
 
+async function applyFunctionManifestShared(onManifest, onMissing) {
+  const manifest = await loadFunctionManifestShared();
+  if (manifest) {
+    if (typeof onManifest === 'function') {
+      await onManifest(manifest);
+    }
+    return manifest;
+  }
+  if (typeof onMissing === 'function') {
+    await onMissing();
+  }
+  return null;
+}
+
 window.FunctionManifestClient = {
   load: loadFunctionManifestShared,
+  apply: applyFunctionManifestShared,
   clear() {
     functionManifestCache = null;
   },
