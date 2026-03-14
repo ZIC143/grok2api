@@ -490,6 +490,60 @@ function getTaskUiHints(config) {
   };
 }
 
+function getFunctionAssemblyManifest(config) {
+  const chatSchema = getChatFormSchema(config);
+  const imagineSchema = getImagineFormSchema(config);
+  const videoSchema = getVideoFormSchema(config);
+  const uiHints = getTaskUiHints(config);
+  const capabilities = getTaskCapabilitySummary(config);
+  const limits = getTaskLimitSummary(config);
+  const restrictions = getTaskRestrictionSummary(config);
+  const bootstrap = getFunctionBootstrapConfig(config);
+
+  return {
+    status: 'ok',
+    version: 'phase-f',
+    runtime: {
+      worker_bridge_mode: 'frontend-assembly-manifest',
+      submit_supported: false,
+    },
+    endpoints: {
+      bootstrap: '/v1/function/bootstrap',
+      capabilities: '/v1/function/capabilities',
+      limits: '/v1/function/limits',
+      restrictions: '/v1/function/restrictions',
+      schema_index: '/v1/function/schema',
+      ui_hints: '/v1/function/ui-hints',
+    },
+    scenes: {
+      chat: {
+        bootstrap: bootstrap.chat,
+        capabilities: capabilities.scenes.chat,
+        limits: limits.limits.chat,
+        restrictions: restrictions.restrictions.chat,
+        schema: chatSchema,
+        ui: uiHints.scenes.chat,
+      },
+      imagine: {
+        bootstrap: bootstrap.imagine,
+        capabilities: capabilities.scenes.imagine,
+        limits: limits.limits.imagine,
+        restrictions: restrictions.restrictions.imagine,
+        schema: imagineSchema,
+        ui: uiHints.scenes.imagine,
+      },
+      video: {
+        bootstrap: bootstrap.video,
+        capabilities: capabilities.scenes.video,
+        limits: limits.limits.video,
+        restrictions: restrictions.restrictions.video,
+        schema: videoSchema,
+        ui: uiHints.scenes.video,
+      },
+    },
+  };
+}
+
 const DEFAULT_RUNTIME_CONFIG = {
   app: {
     app_url: '',
@@ -1184,6 +1238,7 @@ async function getOpenAIMetadata(env) {
       function_schema_imagine: '/v1/function/schema/imagine',
       function_schema_video: '/v1/function/schema/video',
       function_ui_hints: '/v1/function/ui-hints',
+      function_manifest: '/v1/function/manifest',
       runtime_status: '/v1/runtime/status',
       runtime_checks: '/v1/runtime/checks',
       runtime_storage: '/v1/runtime/storage',
@@ -1208,6 +1263,7 @@ async function getOpenAIMetadata(env) {
       function_schema_imagine: true,
       function_schema_video: true,
       function_ui_hints: true,
+      function_manifest: true,
       runtime_status: true,
       runtime_checks: true,
       runtime_storage: true,
@@ -1256,7 +1312,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/function/schema', '/v1/function/schema/chat', '/v1/function/schema/imagine', '/v1/function/schema/video', '/v1/function/ui-hints', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/function/schema', '/v1/function/schema/chat', '/v1/function/schema/imagine', '/v1/function/schema/video', '/v1/function/ui-hints', '/v1/function/manifest', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -1335,6 +1391,11 @@ export default {
     if (url.pathname === '/v1/function/ui-hints' && request.method === 'GET') {
       const runtimeConfig = await getRuntimeConfig(env);
       return json(getTaskUiHints(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/manifest' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getFunctionAssemblyManifest(runtimeConfig.config));
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
