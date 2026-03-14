@@ -16,6 +16,36 @@ function applyChatModelSummary(container, manifest) {
   host.appendChild(badge);
 }
 
+function applyCapabilitySummary(container, manifest) {
+  if (!container || !manifest || !manifest.scenes) return;
+  const host = container.querySelector('#function-summary-badges');
+  if (!host) return;
+
+  const sceneEntries = Object.values(manifest.scenes);
+  const imageRefSupported = sceneEntries.some((scene) => scene && scene.capabilities && scene.capabilities.image_reference_supported);
+  const reasoningSupported = sceneEntries.some((scene) => scene && scene.capabilities && scene.capabilities.reasoning_effort_supported);
+  const streamSupported = sceneEntries.some((scene) => scene && scene.capabilities && scene.capabilities.streaming_supported);
+
+  const badges = [];
+  if (imageRefSupported) {
+    badges.push({ label: '参考图', title: '至少一个场景支持参考图输入' });
+  }
+  if (reasoningSupported) {
+    badges.push({ label: '推理强度', title: '至少一个场景支持 reasoning effort 相关参数' });
+  }
+  if (!streamSupported) {
+    badges.push({ label: '无流桥接', title: '当前 Worker 入口仍不提供流式执行桥接' });
+  }
+
+  badges.forEach((badge) => {
+    const el = document.createElement('span');
+    el.className = 'nav-summary-badge nav-summary-muted';
+    el.textContent = badge.label;
+    el.title = badge.title;
+    host.appendChild(el);
+  });
+}
+
 async function loadFunctionManifestSummary() {
   try {
     const res = await fetch(FUNCTION_MANIFEST_ENDPOINT, { cache: 'no-store' });
@@ -93,6 +123,7 @@ function applyFunctionManifestSummary(container, manifest) {
   }
 
   applyChatModelSummary(container, manifest);
+  applyCapabilitySummary(container, manifest);
 
   const banner = document.getElementById('function-status-banner');
   if (banner) {
