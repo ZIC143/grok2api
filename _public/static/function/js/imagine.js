@@ -22,6 +22,9 @@
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightboxImg');
   const closeLightbox = document.getElementById('closeLightbox');
+  const ratioLabel = document.querySelector('label[for="ratioSelect"]');
+  const concurrentLabel = document.querySelector('label[for="concurrentSelect"]');
+  const nsfwLabel = document.querySelector('label[for="nsfwSelect"]');
 
   let wsConnections = [];
   let sseConnections = [];
@@ -60,6 +63,25 @@
   function setElementTitle(element, value) {
     if (!element || !value) return;
     element.title = String(value);
+  }
+
+  function setElementText(element, value) {
+    if (!element || !value) return;
+    element.textContent = String(value);
+  }
+
+  function ensureFieldDescription(element, text) {
+    if (!element || !text) return;
+    let desc = element.parentElement && element.parentElement.querySelector('.field-dynamic-desc');
+    if (!desc) {
+      desc = document.createElement('div');
+      desc.className = 'field-dynamic-desc';
+      desc.style.fontSize = '12px';
+      desc.style.opacity = '0.7';
+      desc.style.marginTop = '4px';
+      element.parentElement.appendChild(desc);
+    }
+    desc.textContent = String(text);
   }
 
   function setSelectOptions(select, options, preferred) {
@@ -111,9 +133,27 @@
     setElementTitle(nsfwSelect, fieldMap.get('nsfw') && fieldMap.get('nsfw').ui && fieldMap.get('nsfw').ui.description);
     setElementTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     setElementTitle(statusText, scene.ui && scene.ui.description);
+
+    if (ratioLabel && fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui) {
+      setElementText(ratioLabel, fieldMap.get('aspect_ratio').ui.label || ratioLabel.textContent);
+      ensureFieldDescription(ratioLabel, fieldMap.get('aspect_ratio').ui.description);
+    }
+    if (concurrentLabel) {
+      ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
+    }
+    if (nsfwLabel && fieldMap.get('nsfw') && fieldMap.get('nsfw').ui) {
+      setElementText(nsfwLabel, fieldMap.get('nsfw').ui.label || nsfwLabel.textContent);
+      ensureFieldDescription(nsfwLabel, fieldMap.get('nsfw').ui.description);
+    }
+
     if (startBtn && scene.ui && scene.ui.submit_label) {
       startBtn.textContent = scene.ui.submit_label;
       startBtn.title = scene.ui.submit_label;
+    }
+
+    const promptField = fieldMap.get('prompt');
+    if (promptField && promptField.ui && promptInput) {
+      ensureFieldDescription(promptInput, promptField.ui.description);
     }
   }
 

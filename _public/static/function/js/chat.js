@@ -28,6 +28,9 @@
   const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
   const sidebarExpandBtn = document.getElementById('sidebarExpandBtn');
   const sessionListEl = document.getElementById('sessionList');
+  const tempLabel = document.querySelector('label[for="tempRange"]');
+  const topPLabel = document.querySelector('label[for="topPRange"]');
+  const systemLabel = document.querySelector('label[for="systemInput"]');
 
   const STORAGE_KEY = 'grok2api_chat_sessions';
   const SIDEBAR_STATE_KEY = 'grok2api_chat_sidebar_collapsed';
@@ -63,12 +66,66 @@
     element.title = String(value);
   }
 
+  function setElementText(element, value) {
+    if (!element || !value) return;
+    element.textContent = String(value);
+  }
+
+  function ensureFieldDescription(element, text) {
+    if (!element || !text) return;
+    let desc = element.parentElement && element.parentElement.querySelector('.field-dynamic-desc');
+    if (!desc) {
+      desc = document.createElement('div');
+      desc.className = 'field-dynamic-desc';
+      desc.style.fontSize = '12px';
+      desc.style.opacity = '0.7';
+      desc.style.marginTop = '4px';
+      element.parentElement.appendChild(desc);
+    }
+    desc.textContent = String(text);
+  }
+
   function applyChatFieldUi(fieldMap, fieldName, element) {
     const field = fieldMap.get(fieldName);
     if (!field || !field.ui || !element) return;
     setElementTitle(element, field.ui.description || field.ui.label);
     if ('placeholder' in element && field.ui.label && !element.placeholder) {
       element.placeholder = field.ui.label;
+    }
+  }
+
+  function applyChatFieldSchema(fieldMap) {
+    const temperatureField = fieldMap.get('temperature');
+    if (temperatureField && tempRange) {
+      if (temperatureField.min !== undefined) tempRange.min = String(temperatureField.min);
+      if (temperatureField.max !== undefined) tempRange.max = String(temperatureField.max);
+      if (temperatureField.step !== undefined) tempRange.step = String(temperatureField.step);
+      if (tempLabel && temperatureField.ui) {
+        setElementText(tempLabel, temperatureField.ui.label || tempLabel.textContent);
+        ensureFieldDescription(tempLabel, temperatureField.ui.description);
+      }
+    }
+
+    const topPField = fieldMap.get('top_p');
+    if (topPField && topPRange) {
+      if (topPField.min !== undefined) topPRange.min = String(topPField.min);
+      if (topPField.max !== undefined) topPRange.max = String(topPField.max);
+      if (topPField.step !== undefined) topPRange.step = String(topPField.step);
+      if (topPLabel && topPField.ui) {
+        setElementText(topPLabel, topPField.ui.label || topPLabel.textContent);
+        ensureFieldDescription(topPLabel, topPField.ui.description);
+      }
+    }
+
+    const messagesField = fieldMap.get('messages');
+    if (messagesField && messagesField.ui && systemLabel) {
+      ensureFieldDescription(systemLabel, messagesField.ui.description);
+    }
+
+    const reasoningField = fieldMap.get('reasoning_effort');
+    if (reasoningField && settingsToggle && reasoningField.ui) {
+      settingsToggle.dataset.dynamicLabel = reasoningField.ui.label || '';
+      setElementTitle(settingsToggle, reasoningField.ui.description || reasoningField.ui.label);
     }
   }
 
@@ -117,6 +174,7 @@
     applyChatFieldUi(fieldMap, 'top_p', topPRange);
     applyChatFieldUi(fieldMap, 'reasoning_effort', settingsToggle);
     applyChatFieldUi(fieldMap, 'messages', attachBtn);
+    applyChatFieldSchema(fieldMap);
 
     if (promptInput && ui.title) {
       promptInput.placeholder = ui.title;
@@ -137,6 +195,9 @@
         settingsPanel.dataset.layoutHint = layoutSummary;
         settingsPanel.title = layoutSummary;
       }
+    }
+    if (settingsPanel && schema.ui && schema.ui.title) {
+      settingsPanel.dataset.dynamicTitle = schema.ui.title;
     }
   }
 

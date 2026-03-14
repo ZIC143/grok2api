@@ -24,6 +24,11 @@
   const videoEmpty = document.getElementById('videoEmpty');
   const videoStage = document.getElementById('videoStage');
   const FUNCTION_MANIFEST_ENDPOINT = '/v1/function/manifest';
+  const ratioLabel = document.querySelector('label[for="ratioSelect"]');
+  const lengthLabel = document.querySelector('label[for="lengthSelect"]');
+  const resolutionLabel = document.querySelector('label[for="resolutionSelect"]');
+  const presetLabel = document.querySelector('label[for="presetSelect"]');
+  const imageUrlLabel = document.querySelector('label[for="imageUrlInput"]');
 
   let currentSource = null;
   let currentTaskId = '';
@@ -55,6 +60,25 @@
   function setElementTitle(element, value) {
     if (!element || !value) return;
     element.title = String(value);
+  }
+
+  function setElementText(element, value) {
+    if (!element || !value) return;
+    element.textContent = String(value);
+  }
+
+  function ensureFieldDescription(element, text) {
+    if (!element || !text) return;
+    let desc = element.parentElement && element.parentElement.querySelector('.field-dynamic-desc');
+    if (!desc) {
+      desc = document.createElement('div');
+      desc.className = 'field-dynamic-desc';
+      desc.style.fontSize = '12px';
+      desc.style.opacity = '0.7';
+      desc.style.marginTop = '4px';
+      element.parentElement.appendChild(desc);
+    }
+    desc.textContent = String(text);
   }
 
   function setSelectOptions(select, options, preferred, formatter) {
@@ -104,6 +128,34 @@
     setElementTitle(presetSelect, fieldMap.get('preset') && fieldMap.get('preset').ui && fieldMap.get('preset').ui.description);
     setElementTitle(imageUrlInput, fieldMap.get('image_url') && fieldMap.get('image_url').ui && fieldMap.get('image_url').ui.description);
     setElementTitle(statusText, ui.description);
+
+    if (ratioLabel && fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui) {
+      setElementText(ratioLabel, fieldMap.get('aspect_ratio').ui.label || ratioLabel.textContent);
+      ensureFieldDescription(ratioLabel, fieldMap.get('aspect_ratio').ui.description);
+    }
+    if (lengthLabel && fieldMap.get('video_length') && fieldMap.get('video_length').ui) {
+      setElementText(lengthLabel, fieldMap.get('video_length').ui.label || lengthLabel.textContent);
+      ensureFieldDescription(lengthLabel, fieldMap.get('video_length').ui.description);
+    }
+    if (resolutionLabel && fieldMap.get('resolution_name') && fieldMap.get('resolution_name').ui) {
+      setElementText(resolutionLabel, fieldMap.get('resolution_name').ui.label || resolutionLabel.textContent);
+      ensureFieldDescription(resolutionLabel, fieldMap.get('resolution_name').ui.description);
+    }
+    if (presetLabel && fieldMap.get('preset') && fieldMap.get('preset').ui) {
+      setElementText(presetLabel, fieldMap.get('preset').ui.label || presetLabel.textContent);
+      ensureFieldDescription(presetLabel, fieldMap.get('preset').ui.description);
+    }
+    if (imageUrlLabel && fieldMap.get('image_url') && fieldMap.get('image_url').ui) {
+      setElementText(imageUrlLabel, fieldMap.get('image_url').ui.label || imageUrlLabel.textContent);
+      ensureFieldDescription(imageUrlLabel, fieldMap.get('image_url').ui.description);
+    }
+    if (promptInput) {
+      const promptField = fieldMap.get('prompt');
+      if (promptField && promptField.ui) {
+        ensureFieldDescription(promptInput, promptField.ui.description);
+      }
+    }
+
     if (startBtn && ui.submit_label) {
       startBtn.textContent = ui.submit_label;
       startBtn.title = ui.submit_label;
