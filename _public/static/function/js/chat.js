@@ -1104,11 +1104,10 @@
     const payload = buildPayload();
 
     (async () => {
-      let headers = { 'Content-Type': 'application/json' };
-      try {
-        const authHeader = await ensureFunctionKey();
-        headers = { ...headers, ...buildAuthHeaders(authHeader) };
-      } catch (e) {}
+      const headers = await window.AdminAuth.buildFunctionJsonHeaders(
+        { 'Content-Type': 'application/json' },
+        { onError: async () => {} }
+      );
 
       try {
         const res = await fetch(CHAT_COMPLETIONS_ENDPOINT, {
@@ -1624,13 +1623,10 @@
     abortController = new AbortController();
     const payload = buildPayloadFrom(historySlice);
 
-    let headers = { 'Content-Type': 'application/json' };
-    try {
-      const authHeader = await ensureFunctionKey();
-      headers = { ...headers, ...buildAuthHeaders(authHeader) };
-    } catch (e) {
-      // ignore auth helper failures
-    }
+    const headers = await window.AdminAuth.buildFunctionJsonHeaders(
+      { 'Content-Type': 'application/json' },
+      { onError: async () => {} }
+    );
 
     try {
       const res = await fetch(CHAT_COMPLETIONS_ENDPOINT, {
@@ -1707,13 +1703,10 @@
     abortController = new AbortController();
     const payload = buildPayload();
 
-    let headers = { 'Content-Type': 'application/json' };
-    try {
-      const authHeader = await ensureFunctionKey();
-      headers = { ...headers, ...buildAuthHeaders(authHeader) };
-    } catch (e) {
-      // ignore auth helper failures
-    }
+    const headers = await window.AdminAuth.buildFunctionJsonHeaders(
+      { 'Content-Type': 'application/json' },
+      { onError: async () => {} }
+    );
 
     try {
       const res = await fetch(CHAT_COMPLETIONS_ENDPOINT, {

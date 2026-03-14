@@ -309,6 +309,20 @@ async function withFunctionAuth(action, options = {}) {
   }
 }
 
+async function buildFunctionJsonHeaders(baseHeaders = {}, options = {}) {
+  let headers = { ...baseHeaders };
+  await withFunctionAuth(
+    async (authHeader) => {
+      headers = { ...headers, ...buildAuthHeaders(authHeader) };
+    },
+    {
+      redirectOnUnauthorized: false,
+      onError: options.onError,
+    }
+  );
+  return headers;
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -323,6 +337,7 @@ window.AdminAuth = {
   showFunctionToast,
   setFunctionActionButtons,
   withFunctionAuth,
+  buildFunctionJsonHeaders,
   buildAuthHeaders,
   logout,
   functionLogout,
