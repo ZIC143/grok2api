@@ -303,6 +303,17 @@ function buildFieldSchema(field) {
   return field;
 }
 
+function withFieldUiMeta(field, ui) {
+  return {
+    ...field,
+    ui,
+  };
+}
+
+function buildSectionMeta(section) {
+  return section;
+}
+
 function getChatFormSchema(config) {
   const chatInit = getChatInitConfig(config);
   return {
@@ -326,13 +337,24 @@ function getChatFormSchema(config) {
       },
     },
     fields: [
-      buildFieldSchema({ name: 'model', type: 'select', required: true, options: chatInit.models.available, default: chatInit.defaults.model }),
-      buildFieldSchema({ name: 'messages', type: 'array', required: true, item_type: 'message', min_items: 1 }),
-      buildFieldSchema({ name: 'stream', type: 'boolean', required: false, default: false, disabled: true }),
-      buildFieldSchema({ name: 'temperature', type: 'number', required: false, min: 0, max: 2, step: 0.1, default: 0.8 }),
-      buildFieldSchema({ name: 'top_p', type: 'number', required: false, min: 0, max: 1, step: 0.05, default: 0.95 }),
-      buildFieldSchema({ name: 'reasoning_effort', type: 'select', required: false, options: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'], default: 'low' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'model', type: 'select', required: true, options: chatInit.models.available, default: chatInit.defaults.model }), { label: '模型', description: '选择对话模型', widget: 'chip-select', group: 'basic', order: 10, width: 'full' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'messages', type: 'array', required: true, item_type: 'message', min_items: 1 }), { label: '消息列表', description: '至少包含一条用户消息', widget: 'message-editor', group: 'content', order: 20, width: 'full' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'stream', type: 'boolean', required: false, default: false, disabled: true }), { label: '流式输出', description: '当前 Worker 桥接层只提供只读 schema，不支持提交执行', widget: 'switch', group: 'advanced', order: 50, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'temperature', type: 'number', required: false, min: 0, max: 2, step: 0.1, default: 0.8 }), { label: 'Temperature', description: '采样温度，值越高越发散', widget: 'range', group: 'advanced', order: 30, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'top_p', type: 'number', required: false, min: 0, max: 1, step: 0.05, default: 0.95 }), { label: 'Top P', description: 'Nucleus sampling 参数', widget: 'range', group: 'advanced', order: 40, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'reasoning_effort', type: 'select', required: false, options: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'], default: 'low' }), { label: '推理强度', description: '控制模型推理深度', widget: 'segmented-select', group: 'advanced', order: 60, width: 'half' }),
     ],
+    sections: [
+      buildSectionMeta({ id: 'basic', label: '基础设置', description: '模型与主要输入', layout: 'grid', columns: 1 }),
+      buildSectionMeta({ id: 'content', label: '内容输入', description: '消息与提示词', layout: 'stack', columns: 1 }),
+      buildSectionMeta({ id: 'advanced', label: '高级参数', description: '采样与推理参数', layout: 'grid', columns: 2 }),
+    ],
+    ui: {
+      title: '聊天表单 Schema',
+      description: '供前端动态渲染聊天输入区域',
+      layout: 'stack',
+      submit_label: '发送',
+    },
   };
 }
 
@@ -356,10 +378,20 @@ function getImagineFormSchema(config) {
       },
     },
     fields: [
-      buildFieldSchema({ name: 'prompt', type: 'string', required: true, min_length: 1, widget: 'textarea' }),
-      buildFieldSchema({ name: 'aspect_ratio', type: 'select', required: false, options: imagineInit.options.aspect_ratios, default: imagineInit.defaults.aspect_ratio }),
-      buildFieldSchema({ name: 'nsfw', type: 'boolean', required: false, default: imagineInit.defaults.nsfw }),
+      withFieldUiMeta(buildFieldSchema({ name: 'prompt', type: 'string', required: true, min_length: 1, widget: 'textarea' }), { label: '提示词', description: '输入图像生成提示词', widget: 'textarea', group: 'content', order: 10, width: 'full' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'aspect_ratio', type: 'select', required: false, options: imagineInit.options.aspect_ratios, default: imagineInit.defaults.aspect_ratio }), { label: '画面比例', description: '选择生成图片比例', widget: 'select', group: 'basic', order: 20, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'nsfw', type: 'boolean', required: false, default: imagineInit.defaults.nsfw }), { label: 'NSFW', description: '是否启用 NSFW 模式', widget: 'switch', group: 'basic', order: 30, width: 'half' }),
     ],
+    sections: [
+      buildSectionMeta({ id: 'content', label: '内容输入', description: '图像提示词输入', layout: 'stack', columns: 1 }),
+      buildSectionMeta({ id: 'basic', label: '基础选项', description: '比例与模式', layout: 'grid', columns: 2 }),
+    ],
+    ui: {
+      title: 'Imagine 表单 Schema',
+      description: '供前端动态渲染图像生成参数区域',
+      layout: 'stack',
+      submit_label: '开始生成',
+    },
   };
 }
 
@@ -388,14 +420,26 @@ function getVideoFormSchema(config) {
       },
     },
     fields: [
-      buildFieldSchema({ name: 'prompt', type: 'string', required: true, min_length: 1, widget: 'textarea' }),
-      buildFieldSchema({ name: 'aspect_ratio', type: 'select', required: false, options: videoInit.options.aspect_ratios, default: videoInit.defaults.aspect_ratio }),
-      buildFieldSchema({ name: 'video_length', type: 'select', required: false, options: videoInit.options.video_lengths, default: videoInit.defaults.video_length }),
-      buildFieldSchema({ name: 'resolution_name', type: 'select', required: false, options: videoInit.options.resolution_names, default: videoInit.defaults.resolution_name }),
-      buildFieldSchema({ name: 'preset', type: 'select', required: false, options: videoInit.options.presets, default: videoInit.defaults.preset }),
-      buildFieldSchema({ name: 'reasoning_effort', type: 'select', required: false, options: videoInit.options.reasoning_efforts, default: videoInit.defaults.reasoning_effort }),
-      buildFieldSchema({ name: 'image_url', type: 'string', required: false, format: 'url-or-data-uri' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'prompt', type: 'string', required: true, min_length: 1, widget: 'textarea' }), { label: '提示词', description: '输入视频生成提示词', widget: 'textarea', group: 'content', order: 10, width: 'full' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'aspect_ratio', type: 'select', required: false, options: videoInit.options.aspect_ratios, default: videoInit.defaults.aspect_ratio }), { label: '画面比例', description: '视频输出比例', widget: 'select', group: 'basic', order: 20, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'video_length', type: 'select', required: false, options: videoInit.options.video_lengths, default: videoInit.defaults.video_length }), { label: '视频时长', description: '单位秒', widget: 'select', group: 'basic', order: 30, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'resolution_name', type: 'select', required: false, options: videoInit.options.resolution_names, default: videoInit.defaults.resolution_name }), { label: '分辨率', description: '视频输出分辨率', widget: 'select', group: 'quality', order: 40, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'preset', type: 'select', required: false, options: videoInit.options.presets, default: videoInit.defaults.preset }), { label: '预设风格', description: '生成风格预设', widget: 'select', group: 'quality', order: 50, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'reasoning_effort', type: 'select', required: false, options: videoInit.options.reasoning_efforts, default: videoInit.defaults.reasoning_effort }), { label: '推理强度', description: '影响视频生成推理深度', widget: 'segmented-select', group: 'advanced', order: 60, width: 'half' }),
+      withFieldUiMeta(buildFieldSchema({ name: 'image_url', type: 'string', required: false, format: 'url-or-data-uri' }), { label: '参考图 URL', description: '可选，支持 URL 或 data URI', widget: 'url-input', group: 'content', order: 70, width: 'full' }),
     ],
+    sections: [
+      buildSectionMeta({ id: 'content', label: '内容输入', description: '提示词与参考图', layout: 'stack', columns: 1 }),
+      buildSectionMeta({ id: 'basic', label: '基础选项', description: '比例与时长', layout: 'grid', columns: 2 }),
+      buildSectionMeta({ id: 'quality', label: '质量设置', description: '分辨率与风格', layout: 'grid', columns: 2 }),
+      buildSectionMeta({ id: 'advanced', label: '高级参数', description: '推理相关设置', layout: 'grid', columns: 2 }),
+    ],
+    ui: {
+      title: 'Video 表单 Schema',
+      description: '供前端动态渲染视频生成参数区域',
+      layout: 'stack',
+      submit_label: '开始生成',
+    },
   };
 }
 
@@ -412,6 +456,36 @@ function getTaskSchemaIndex(config) {
       chat: getChatFormSchema(config),
       imagine: getImagineFormSchema(config),
       video: getVideoFormSchema(config),
+    },
+  };
+}
+
+function getTaskUiHints(config) {
+  return {
+    status: 'ok',
+    version: 'phase-e',
+    scenes: {
+      chat: {
+        title: '聊天面板',
+        icon: 'message-square',
+        preferred_layout: 'sidebar-main',
+        submit_label: '发送',
+        sections: getChatFormSchema(config).sections,
+      },
+      imagine: {
+        title: 'Imagine 面板',
+        icon: 'image',
+        preferred_layout: 'toolbar-main',
+        submit_label: '开始生成',
+        sections: getImagineFormSchema(config).sections,
+      },
+      video: {
+        title: 'Video 面板',
+        icon: 'film',
+        preferred_layout: 'toolbar-main',
+        submit_label: '开始生成',
+        sections: getVideoFormSchema(config).sections,
+      },
     },
   };
 }
@@ -1109,6 +1183,7 @@ async function getOpenAIMetadata(env) {
       function_schema_chat: '/v1/function/schema/chat',
       function_schema_imagine: '/v1/function/schema/imagine',
       function_schema_video: '/v1/function/schema/video',
+      function_ui_hints: '/v1/function/ui-hints',
       runtime_status: '/v1/runtime/status',
       runtime_checks: '/v1/runtime/checks',
       runtime_storage: '/v1/runtime/storage',
@@ -1132,6 +1207,7 @@ async function getOpenAIMetadata(env) {
       function_schema_chat: true,
       function_schema_imagine: true,
       function_schema_video: true,
+      function_ui_hints: true,
       runtime_status: true,
       runtime_checks: true,
       runtime_storage: true,
@@ -1180,7 +1256,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/function/schema', '/v1/function/schema/chat', '/v1/function/schema/imagine', '/v1/function/schema/video', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/function/schema', '/v1/function/schema/chat', '/v1/function/schema/imagine', '/v1/function/schema/video', '/v1/function/ui-hints', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -1254,6 +1330,11 @@ export default {
     if (url.pathname === '/v1/function/schema/video' && request.method === 'GET') {
       const runtimeConfig = await getRuntimeConfig(env);
       return json(getVideoFormSchema(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/ui-hints' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getTaskUiHints(runtimeConfig.config));
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
