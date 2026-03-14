@@ -30,6 +30,7 @@
   const presetLabel = document.querySelector('label[for="presetSelect"]');
   const imageUrlLabel = document.querySelector('label[for="imageUrlInput"]');
   const settingsGrid = document.querySelector('.video-card .settings-grid');
+  const videoTitle = document.querySelector('h2[data-i18n="video.title"]');
 
   let currentSource = null;
   let currentTaskId = '';
@@ -111,28 +112,23 @@
     window.SchemaUI.setTitle(statusText, ui.description);
 
     if (ratioLabel && ratioField && ratioField.ui) {
-      window.SchemaUI.setText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(ratioLabel, ratioField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(ratioField, ratioSelect, { labelElement: ratioLabel });
     }
     if (lengthLabel && lengthField && lengthField.ui) {
-      window.SchemaUI.setText(lengthLabel, lengthField.ui.label || lengthLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(lengthLabel, lengthField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(lengthField, lengthSelect, { labelElement: lengthLabel });
     }
     if (resolutionLabel && resolutionField && resolutionField.ui) {
-      window.SchemaUI.setText(resolutionLabel, resolutionField.ui.label || resolutionLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(resolutionLabel, resolutionField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(resolutionField, resolutionSelect, { labelElement: resolutionLabel });
     }
     if (presetLabel && presetField && presetField.ui) {
-      window.SchemaUI.setText(presetLabel, presetField.ui.label || presetLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(presetLabel, presetField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(presetField, presetSelect, { labelElement: presetLabel });
     }
     if (imageUrlLabel && imageField && imageField.ui) {
-      window.SchemaUI.setText(imageUrlLabel, imageField.ui.label || imageUrlLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(imageUrlLabel, imageField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(imageField, imageUrlInput, { labelElement: imageUrlLabel });
     }
     if (promptInput) {
       if (promptField && promptField.ui) {
-        window.SchemaUI.ensureFieldDescription(promptInput, promptField.ui.description);
+        window.SchemaUI.applyFieldUiBlock(promptField, promptInput, { widthTarget: promptInput.closest('.settings-block') || promptInput });
       }
     }
 
@@ -146,10 +142,22 @@
         { element: presetSelect, order: presetField && presetField.ui ? presetField.ui.order : 0 },
       ]);
     }
+    window.SchemaUI.applySectionLayout(settingsGrid, schema.sections || [], {
+      content: promptInput ? promptInput.closest('.settings-block') : null,
+      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+      quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
+      advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
+    });
 
     if (startBtn && ui.submit_label) {
       startBtn.textContent = ui.submit_label;
       startBtn.title = ui.submit_label;
+    }
+    if (videoTitle && ui.title) {
+      videoTitle.textContent = ui.title;
+    }
+    if (scene.access) {
+      window.SchemaUI.setVisibility(startBtn, scene.access.enabled !== false);
     }
     updateMeta();
   }

@@ -26,6 +26,7 @@
   const concurrentLabel = document.querySelector('label[for="concurrentSelect"]');
   const nsfwLabel = document.querySelector('label[for="nsfwSelect"]');
   const settingsContent = document.getElementById('settingsContent');
+  const imagineTitle = document.querySelector('h2[data-i18n="imagine.title"]');
 
   let wsConnections = [];
   let sseConnections = [];
@@ -104,15 +105,13 @@
     window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 
     if (ratioLabel && ratioField && ratioField.ui) {
-      window.SchemaUI.setText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(ratioLabel, ratioField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(ratioField, ratioSelect, { labelElement: ratioLabel });
     }
     if (concurrentLabel) {
       window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
     }
     if (nsfwLabel && nsfwField && nsfwField.ui) {
-      window.SchemaUI.setText(nsfwLabel, nsfwField.ui.label || nsfwLabel.textContent);
-      window.SchemaUI.ensureFieldDescription(nsfwLabel, nsfwField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(nsfwField, nsfwSelect, { labelElement: nsfwLabel });
     }
 
     if (startBtn && scene.ui && scene.ui.submit_label) {
@@ -121,7 +120,7 @@
     }
 
     if (promptField && promptField.ui && promptInput) {
-      window.SchemaUI.ensureFieldDescription(promptInput, promptField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(promptField, promptInput, { widthTarget: promptInput.closest('.settings-block') || promptInput });
     }
 
     if (settingsContent) {
@@ -134,6 +133,16 @@
           { element: nsfwSelect, order: nsfwField && nsfwField.ui ? nsfwField.ui.order : 0 },
         ]);
       }
+    }
+    window.SchemaUI.applySectionLayout(settingsContent, schema.sections || [], {
+      content: promptInput ? promptInput.closest('.settings-block') : null,
+      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+    });
+    if (imagineTitle && scene.ui && scene.ui.title) {
+      imagineTitle.textContent = scene.ui.title;
+    }
+    if (scene.access) {
+      window.SchemaUI.setVisibility(startBtn, scene.access.enabled !== false);
     }
   }
 

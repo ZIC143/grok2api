@@ -71,6 +71,53 @@ function schemaUpdateFieldOrder(container, entries) {
   });
 }
 
+function schemaApplySectionLayout(container, sections, sectionElements) {
+  if (!container || !Array.isArray(sections) || !sectionElements) return;
+  sections.forEach((section) => {
+    const sectionEl = sectionElements[section.id];
+    if (!sectionEl) return;
+    sectionEl.dataset.sectionId = section.id;
+    sectionEl.dataset.layout = section.layout || 'stack';
+    sectionEl.dataset.columns = String(section.columns || 1);
+    if (section.label) {
+      sectionEl.dataset.sectionLabel = section.label;
+    }
+    if (section.description) {
+      sectionEl.dataset.sectionDescription = section.description;
+      sectionEl.title = section.description;
+    }
+  });
+}
+
+function schemaSetVisibility(element, visible) {
+  if (!element) return;
+  element.style.display = visible ? '' : 'none';
+  element.dataset.schemaVisible = visible ? 'true' : 'false';
+}
+
+function schemaApplyFieldWidth(element, width) {
+  if (!element || !width) return;
+  element.dataset.schemaWidth = String(width);
+}
+
+function schemaApplyFieldUiBlock(field, element, options = {}) {
+  if (!field || !field.ui || !element) return;
+  const ui = field.ui;
+  if (ui.label && options.labelElement) {
+    schemaSetText(options.labelElement, ui.label);
+  }
+  if (ui.description) {
+    schemaEnsureFieldDescription(options.labelElement || element, ui.description);
+  }
+  if (ui.description || ui.label) {
+    schemaSetTitle(element, ui.description || ui.label);
+  }
+  if (ui.width) {
+    const target = options.widthTarget || element.closest('.settings-block') || element.closest('.settings-field') || element;
+    schemaApplyFieldWidth(target, ui.width);
+  }
+}
+
 window.SchemaUI = {
   setTitle: schemaSetTitle,
   setText: schemaSetText,
@@ -78,4 +125,8 @@ window.SchemaUI = {
   setSelectOptions: schemaSetSelectOptions,
   applySelectField: schemaApplySelectField,
   updateFieldOrder: schemaUpdateFieldOrder,
+  applySectionLayout: schemaApplySectionLayout,
+  setVisibility: schemaSetVisibility,
+  applyFieldWidth: schemaApplyFieldWidth,
+  applyFieldUiBlock: schemaApplyFieldUiBlock,
 };

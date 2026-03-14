@@ -32,6 +32,7 @@
   const topPLabel = document.querySelector('label[for="topPRange"]');
   const systemLabel = document.querySelector('label[for="systemInput"]');
   const settingsGrid = settingsPanel ? settingsPanel.querySelector('.settings-grid') : null;
+  const chatTitle = document.querySelector('h2[data-i18n="chat.title"]');
 
   const STORAGE_KEY = 'grok2api_chat_sessions';
   const SIDEBAR_STATE_KEY = 'grok2api_chat_sidebar_collapsed';
@@ -78,8 +79,7 @@
       if (temperatureField.max !== undefined) tempRange.max = String(temperatureField.max);
       if (temperatureField.step !== undefined) tempRange.step = String(temperatureField.step);
       if (tempLabel && temperatureField.ui) {
-        window.SchemaUI.setText(tempLabel, temperatureField.ui.label || tempLabel.textContent);
-        window.SchemaUI.ensureFieldDescription(tempLabel, temperatureField.ui.description);
+        window.SchemaUI.applyFieldUiBlock(temperatureField, tempRange, { labelElement: tempLabel });
       }
     }
 
@@ -89,14 +89,13 @@
       if (topPField.max !== undefined) topPRange.max = String(topPField.max);
       if (topPField.step !== undefined) topPRange.step = String(topPField.step);
       if (topPLabel && topPField.ui) {
-        window.SchemaUI.setText(topPLabel, topPField.ui.label || topPLabel.textContent);
-        window.SchemaUI.ensureFieldDescription(topPLabel, topPField.ui.description);
+        window.SchemaUI.applyFieldUiBlock(topPField, topPRange, { labelElement: topPLabel });
       }
     }
 
     const messagesField = fieldMap.get('messages');
     if (messagesField && messagesField.ui && systemLabel) {
-      window.SchemaUI.ensureFieldDescription(systemLabel, messagesField.ui.description);
+      window.SchemaUI.applyFieldUiBlock(messagesField, systemInput, { labelElement: systemLabel, widthTarget: systemInput.closest('.settings-block') || systemInput });
     }
 
     const reasoningField = fieldMap.get('reasoning_effort');
@@ -190,6 +189,14 @@
         { element: topPRange, order: topPField && topPField.ui ? topPField.ui.order : 0 },
         { element: systemInput, order: messagesField && messagesField.ui ? messagesField.ui.order : 0 },
       ]);
+    }
+    window.SchemaUI.applySectionLayout(settingsGrid, schema.sections || [], {
+      basic: tempRange ? tempRange.closest('.settings-block') : null,
+      content: systemInput ? systemInput.closest('.settings-block') : null,
+      advanced: topPRange ? topPRange.closest('.settings-block') : null,
+    });
+    if (chatTitle && ui.title) {
+      chatTitle.textContent = ui.title;
     }
   }
 
