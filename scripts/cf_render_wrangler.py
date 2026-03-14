@@ -19,12 +19,27 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    template = Path(args.template).read_text(encoding="utf-8")
-    data = json.loads(Path(args.resources).read_text(encoding="utf-8"))
+    template_path = Path(args.template)
+    resources_path = Path(args.resources)
+
+    if not template_path.exists():
+        raise SystemExit(f"Wrangler template not found: {template_path}")
+    if not resources_path.exists():
+        raise SystemExit(f"Resources file not found: {resources_path}")
+
+    template = template_path.read_text(encoding="utf-8")
+    data = json.loads(resources_path.read_text(encoding="utf-8"))
 
     rendered = template
     for placeholder, getter in PLACEHOLDERS.items():
-        rendered = rendered.replace(placeholder, getter(data))
+        value = getter(data)
+        if not value:
+            raise SystemExit(f"Missing value for placeholder {placeholder}")
+        rendered = rendered.replace(placeholder, value)
+
+    unresolved = [key for key in PLACEHOLDERS if key in rendered]
+    if unresolved:
+        raise SystemExit(f"Unresolved placeholders remain: {', '.join(unresolved)}")
 
     Path(args.output).write_text(rendered, encoding="utf-8")
     return 0

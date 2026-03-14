@@ -10,7 +10,11 @@ def main() -> int:
     parser.add_argument("--environment", required=True)
     args = parser.parse_args()
 
-    data = json.loads(Path(args.resources).read_text(encoding="utf-8"))
+    resources_path = Path(args.resources)
+    if not resources_path.exists():
+        raise SystemExit(f"Resources file not found: {resources_path}")
+
+    data = json.loads(resources_path.read_text(encoding="utf-8"))
     worker_url = f"https://{args.worker_name}.workers.dev"
 
     print("Deployment summary")
@@ -19,6 +23,7 @@ def main() -> int:
     print(f"- url: {worker_url}")
     print(f"- d1: {data['d1']['name']} ({data['d1']['id']})")
     print(f"- kv: {data['kv']['name']} ({data['kv']['id']})")
+    print("- next check: open /health on the worker URL")
     return 0
 
 

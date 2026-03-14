@@ -20,6 +20,10 @@ on:
         required: false
         default: ""
 
+concurrency:
+  group: deploy-cloudflare-workers-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -34,6 +38,7 @@ jobs:
       CF_KV_NAME: ${{ github.event.inputs.kv_name || format('grok2api-{0}-kv', github.repository_owner) }}
       CF_WRANGLER_TEMPLATE: cloudflare/wrangler.cloudflare.jsonc
       CF_WRANGLER_OUTPUT: .wrangler.generated.jsonc
+      CF_RESOURCES_OUTPUT: cloudflare/resources.json
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -54,37 +59,66 @@ jobs:
           set -euo pipefail
           test -n "${CLOUDFLARE_ACCOUNT_ID}"
           test -n "${CLOUDFLARE_API_TOKEN}"
+          test -f "${CF_WRANGLER_TEMPLATE}"
+          test -f "cloudflare/worker-entry.js"
+
+      - name: Validate deployment names
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, re
+          pattern = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{1,62}[A-Za-z0-9]$')
+          for key in ('CF_WORKER_NAME', 'CF_D1_NAME', 'CF_KV_NAME'):
+              value = os.environ.get(key, '').strip()
+              if not value:
+                  raise SystemExit(f'{key} is empty')
+              if not pattern.fullmatch(value):
+                  raise SystemExit(f'{key} contains invalid characters: {value!r}')
+          PY
 
       - name: Install Wrangler CLI
         run: npm install --global wrangler@4
 
+      - name: Show Wrangler version
+        run: wrangler --version
+
       - name: Prepare Cloudflare resources
         shell: bash
         run: |
-          python scripts/cf_prepare_resources.py --output cloudflare/resources.json
+          python scripts/cf_prepare_resources.py --output "${CF_RESOURCES_OUTPUT}"
 
       - name: Render Wrangler config
         shell: bash
         run: |
           python scripts/cf_render_wrangler.py \
             --template "${CF_WRANGLER_TEMPLATE}" \
-            --resources cloudflare/resources.json \
+            --resources "${CF_RESOURCES_OUTPUT}" \
             --output "${CF_WRANGLER_OUTPUT}"
 
       - name: Show rendered Wrangler config path
         shell: bash
         run: |
           echo "Using Wrangler config: ${CF_WRANGLER_OUTPUT}"
+          test -f "${CF_WRANGLER_OUTPUT}"
 
       - name: Deploy Worker
         shell: bash
         run: |
           wrangler deploy --config "${CF_WRANGLER_OUTPUT}"
 
+      - name: Health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url="https://${CF_WORKER_NAME}.workers.dev/health"
+          echo "Checking ${worker_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$worker_url"
+
       - name: Post deploy summary
         shell: bash
         run: |
           python scripts/cf_post_deploy.py \
-            --resources cloudflare/resources.json \
+            --resources "${CF_RESOURCES_OUTPUT}" \
             --worker-name "${CF_WORKER_NAME}" \
             --environment "${CF_ENVIRONMENT}"
