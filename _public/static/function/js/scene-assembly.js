@@ -54,9 +54,28 @@ function applySceneMeta(parts, options = {}) {
   }
 }
 
+function applySceneSections(parts, options = {}) {
+  if (!parts) return;
+  const { schema, fieldMap } = parts;
+  if (options.orderContainer && Array.isArray(options.orderEntries)) {
+    const entries = options.orderEntries.map((entry) => ({
+      ...entry,
+      order: entry.fieldName && fieldMap.get(entry.fieldName) && fieldMap.get(entry.fieldName).ui
+        ? fieldMap.get(entry.fieldName).ui.order
+        : entry.order,
+    }));
+    window.SchemaUI.updateFieldOrder(options.orderContainer, entries);
+  }
+  if (options.layoutContainer && options.sectionElements) {
+    window.SchemaUI.applySectionLayout(options.layoutContainer, schema.sections || [], options.sectionElements);
+    window.SchemaUI.applySectionPresentation(options.layoutContainer, schema.sections || [], options.sectionElements);
+  }
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
   getSceneParts,
   applySceneMeta,
+  applySceneSections,
 };

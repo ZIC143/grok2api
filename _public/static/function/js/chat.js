@@ -142,25 +142,19 @@
       submitButton: sendBtn,
       layoutElement: settingsPanel,
     });
-    if (settingsGrid) {
-      const temperatureField = fieldMap.get('temperature');
-      const topPField = fieldMap.get('top_p');
-      const messagesField = fieldMap.get('messages');
-      window.SchemaUI.updateFieldOrder(settingsGrid, [
-        { element: tempRange, order: temperatureField && temperatureField.ui ? temperatureField.ui.order : 0 },
-        { element: topPRange, order: topPField && topPField.ui ? topPField.ui.order : 0 },
-        { element: systemInput, order: messagesField && messagesField.ui ? messagesField.ui.order : 0 },
-      ]);
-    }
-    window.SchemaUI.applySectionLayout(settingsGrid, schema.sections || [], {
-      basic: tempRange ? tempRange.closest('.settings-block') : null,
-      content: systemInput ? systemInput.closest('.settings-block') : null,
-      advanced: topPRange ? topPRange.closest('.settings-block') : null,
-    });
-    window.SchemaUI.applySectionPresentation(settingsGrid, schema.sections || [], {
-      basic: tempRange ? tempRange.closest('.settings-block') : null,
-      content: systemInput ? systemInput.closest('.settings-block') : null,
-      advanced: topPRange ? topPRange.closest('.settings-block') : null,
+    window.SceneAssembly.applySceneSections(parts, {
+      orderContainer: settingsGrid,
+      orderEntries: [
+        { element: tempRange, fieldName: 'temperature' },
+        { element: topPRange, fieldName: 'top_p' },
+        { element: systemInput, fieldName: 'messages' },
+      ],
+      layoutContainer: settingsGrid,
+      sectionElements: {
+        basic: tempRange ? tempRange.closest('.settings-block') : null,
+        content: systemInput ? systemInput.closest('.settings-block') : null,
+        advanced: topPRange ? topPRange.closest('.settings-block') : null,
+      },
     });
     if (chatTitle && ui.title) {
       chatTitle.textContent = ui.title;

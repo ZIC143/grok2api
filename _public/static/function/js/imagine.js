@@ -92,24 +92,20 @@
       window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
     }
 
-    if (settingsContent) {
-      const settingsGrid = settingsContent.querySelector('.settings-grid');
-      if (settingsGrid) {
-        window.SchemaUI.updateFieldOrder(settingsGrid, [
-          { element: promptInput, order: promptField && promptField.ui ? promptField.ui.order : 0 },
-          { element: ratioSelect, order: ratioField && ratioField.ui ? ratioField.ui.order : 0 },
-          { element: concurrentSelect, order: concurrentField && concurrentField.ui ? concurrentField.ui.order : 0 },
-          { element: nsfwSelect, order: nsfwField && nsfwField.ui ? nsfwField.ui.order : 0 },
-        ]);
-      }
-    }
-    window.SchemaUI.applySectionLayout(settingsContent, schema.sections || [], {
-      content: promptInput ? promptInput.closest('.settings-block') : null,
-      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
-    });
-    window.SchemaUI.applySectionPresentation(settingsContent, schema.sections || [], {
-      content: promptInput ? promptInput.closest('.settings-block') : null,
-      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+    const imagineSettingsGrid = settingsContent ? settingsContent.querySelector('.settings-grid') : null;
+    window.SceneAssembly.applySceneSections(parts, {
+      orderContainer: imagineSettingsGrid,
+      orderEntries: [
+        { element: promptInput, fieldName: 'prompt' },
+        { element: ratioSelect, fieldName: 'aspect_ratio' },
+        { element: concurrentSelect, fieldName: 'concurrent' },
+        { element: nsfwSelect, fieldName: 'nsfw' },
+      ],
+      layoutContainer: settingsContent,
+      sectionElements: {
+        content: promptInput ? promptInput.closest('.settings-block') : null,
+        basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+      },
     });
     window.SceneAssembly.applySceneMeta(parts, {
       statusElement: statusText,

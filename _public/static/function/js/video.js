@@ -91,27 +91,23 @@
     }
     window.SchemaUI.setTitle(statusText, ui.description);
 
-    if (settingsGrid) {
-      window.SchemaUI.updateFieldOrder(settingsGrid, [
-        { element: promptInput, order: promptField && promptField.ui ? promptField.ui.order : 0 },
-        { element: imageUrlInput, order: imageField && imageField.ui ? imageField.ui.order : 0 },
-        { element: ratioSelect, order: ratioField && ratioField.ui ? ratioField.ui.order : 0 },
-        { element: lengthSelect, order: lengthField && lengthField.ui ? lengthField.ui.order : 0 },
-        { element: resolutionSelect, order: resolutionField && resolutionField.ui ? resolutionField.ui.order : 0 },
-        { element: presetSelect, order: presetField && presetField.ui ? presetField.ui.order : 0 },
-      ]);
-    }
-    window.SchemaUI.applySectionLayout(settingsGrid, schema.sections || [], {
-      content: promptInput ? promptInput.closest('.settings-block') : null,
-      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
-      quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
-      advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
-    });
-    window.SchemaUI.applySectionPresentation(settingsGrid, schema.sections || [], {
-      content: promptInput ? promptInput.closest('.settings-block') : null,
-      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
-      quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
-      advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
+    window.SceneAssembly.applySceneSections(parts, {
+      orderContainer: settingsGrid,
+      orderEntries: [
+        { element: promptInput, fieldName: 'prompt' },
+        { element: imageUrlInput, fieldName: 'image_url' },
+        { element: ratioSelect, fieldName: 'aspect_ratio' },
+        { element: lengthSelect, fieldName: 'video_length' },
+        { element: resolutionSelect, fieldName: 'resolution_name' },
+        { element: presetSelect, fieldName: 'preset' },
+      ],
+      layoutContainer: settingsGrid,
+      sectionElements: {
+        content: promptInput ? promptInput.closest('.settings-block') : null,
+        basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+        quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
+        advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
+      },
     });
 
     window.SceneAssembly.applySceneMeta(parts, {
