@@ -805,6 +805,42 @@ async function handleFunctionChatCompletions(request, env) {
     );
   }
 
+  if (bridge.configured) {
+    try {
+      const backendUrl = new URL(bridge.backend_url);
+      const targetUrl = new URL('/chat/completions', backendUrl);
+      const forwardHeaders = new Headers({
+        'content-type': 'application/json',
+      });
+      const response = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify(payload),
+      });
+
+      const contentType = response.headers.get('content-type') || 'application/json';
+      const bodyText = await response.text();
+      return new Response(bodyText, {
+        status: response.status,
+        headers: {
+          'content-type': contentType,
+          'cache-control': 'no-store',
+        },
+      });
+    } catch (error) {
+      return json(
+        {
+          status: 'error',
+          message: 'chat-bridge-forward-failed',
+          code: 'bridge_forward_failed',
+          detail: String(error && error.message ? error.message : error),
+          bridge,
+        },
+        { status: 502 }
+      );
+    }
+  }
+
   return json({
     status: 'accepted',
     scene: 'chat',
