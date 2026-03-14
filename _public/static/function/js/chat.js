@@ -1476,9 +1476,7 @@
       return;
     }
     try {
-      const res = await fetch('/v1/models', { cache: 'no-store' });
-      if (!res.ok) throw new Error('models fetch failed');
-      const data = await res.json();
+      const data = await window.AdminAuth.getJson('/v1/models', { errorMessage: 'models fetch failed' });
       const items = Array.isArray(data && data.data) ? data.data : [];
       const ids = items
         .map(item => item && item.id)

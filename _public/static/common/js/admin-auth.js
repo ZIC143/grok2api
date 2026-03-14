@@ -350,6 +350,18 @@ async function postFunctionJsonRaw(url, payload, options = {}) {
   return postFunctionJson(url, payload, options);
 }
 
+async function getJson(url, options = {}) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: options.headers || {},
+    cache: options.cache || 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error(options.errorMessage || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
@@ -368,6 +380,7 @@ window.AdminAuth = {
   postFunctionJson,
   postFunctionJsonExpectJson,
   postFunctionJsonRaw,
+  getJson,
   buildAuthHeaders,
   logout,
   functionLogout,
