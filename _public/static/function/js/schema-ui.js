@@ -161,6 +161,32 @@ function schemaApplySectionPresentation(container, sections, sectionElements) {
   });
 }
 
+function schemaRenderSelectField(select, field, options = {}) {
+  if (!select || !field) return;
+  schemaApplySelectField(select, field, options.formatter);
+  schemaApplyFieldUiBlock(field, select, {
+    labelElement: options.labelElement,
+    widthTarget: options.widthTarget,
+  });
+}
+
+function schemaRenderTextField(input, field, options = {}) {
+  if (!input || !field) return;
+  if (field.min_length !== undefined) {
+    input.minLength = Number(field.min_length) || 0;
+  }
+  if (field.max_length !== undefined) {
+    input.maxLength = Number(field.max_length) || 0;
+  }
+  if (field.ui && field.ui.label && !input.placeholder) {
+    input.placeholder = field.ui.label;
+  }
+  schemaApplyFieldUiBlock(field, input, {
+    labelElement: options.labelElement,
+    widthTarget: options.widthTarget,
+  });
+}
+
 window.SchemaUI = {
   setTitle: schemaSetTitle,
   setText: schemaSetText,
@@ -174,4 +200,6 @@ window.SchemaUI = {
   applyFieldUiBlock: schemaApplyFieldUiBlock,
   ensureSectionHeader: schemaEnsureSectionHeader,
   applySectionPresentation: schemaApplySectionPresentation,
+  renderSelectField: schemaRenderSelectField,
+  renderTextField: schemaRenderTextField,
 };

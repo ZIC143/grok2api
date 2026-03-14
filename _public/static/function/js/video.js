@@ -82,10 +82,10 @@
     window.SchemaUI.setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
     window.SchemaUI.setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
     window.SchemaUI.setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
-    window.SchemaUI.applySelectField(ratioSelect, ratioField, (value) => String(value));
-    window.SchemaUI.applySelectField(lengthSelect, lengthField, (value) => `${value}s`);
-    window.SchemaUI.applySelectField(resolutionSelect, resolutionField, (value) => String(value));
-    window.SchemaUI.applySelectField(presetSelect, presetField, (value) => String(value));
+    window.SchemaUI.renderSelectField(ratioSelect, ratioField, { labelElement: ratioLabel, formatter: (value) => String(value) });
+    window.SchemaUI.renderSelectField(lengthSelect, lengthField, { labelElement: lengthLabel, formatter: (value) => `${value}s` });
+    window.SchemaUI.renderSelectField(resolutionSelect, resolutionField, { labelElement: resolutionLabel, formatter: (value) => String(value) });
+    window.SchemaUI.renderSelectField(presetSelect, presetField, { labelElement: presetLabel, formatter: (value) => String(value) });
 
     if (lengthField && typeof lengthField.min === 'number') {
       lengthSelect.min = String(lengthField.min);
@@ -98,38 +98,13 @@
     }
 
     if (promptInput) {
-      promptInput.placeholder = (promptField && promptField.ui && promptField.ui.label) || promptInput.placeholder;
-      window.SchemaUI.setTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
-      if (promptField && promptField.min_length !== undefined) {
-        promptInput.minLength = Number(promptField.min_length) || 0;
-      }
+      window.SchemaUI.renderTextField(promptInput, promptField, { widthTarget: promptInput.closest('.settings-block') || promptInput });
     }
-    window.SchemaUI.setTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
-    window.SchemaUI.setTitle(lengthSelect, lengthField && lengthField.ui && lengthField.ui.description);
-    window.SchemaUI.setTitle(resolutionSelect, resolutionField && resolutionField.ui && resolutionField.ui.description);
-    window.SchemaUI.setTitle(presetSelect, presetField && presetField.ui && presetField.ui.description);
     window.SchemaUI.setTitle(imageUrlInput, imageField && imageField.ui && imageField.ui.description);
     window.SchemaUI.setTitle(statusText, ui.description);
 
-    if (ratioLabel && ratioField && ratioField.ui) {
-      window.SchemaUI.applyFieldUiBlock(ratioField, ratioSelect, { labelElement: ratioLabel });
-    }
-    if (lengthLabel && lengthField && lengthField.ui) {
-      window.SchemaUI.applyFieldUiBlock(lengthField, lengthSelect, { labelElement: lengthLabel });
-    }
-    if (resolutionLabel && resolutionField && resolutionField.ui) {
-      window.SchemaUI.applyFieldUiBlock(resolutionField, resolutionSelect, { labelElement: resolutionLabel });
-    }
-    if (presetLabel && presetField && presetField.ui) {
-      window.SchemaUI.applyFieldUiBlock(presetField, presetSelect, { labelElement: presetLabel });
-    }
     if (imageUrlLabel && imageField && imageField.ui) {
       window.SchemaUI.applyFieldUiBlock(imageField, imageUrlInput, { labelElement: imageUrlLabel });
-    }
-    if (promptInput) {
-      if (promptField && promptField.ui) {
-        window.SchemaUI.applyFieldUiBlock(promptField, promptInput, { widthTarget: promptInput.closest('.settings-block') || promptInput });
-      }
     }
 
     if (settingsGrid) {

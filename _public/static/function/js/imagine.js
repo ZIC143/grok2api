@@ -89,38 +89,22 @@
     if (concurrentSelect && concurrentField && Array.isArray(concurrentField.options)) {
       window.SchemaUI.setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
     }
-    window.SchemaUI.applySelectField(ratioSelect, ratioField, (value) => String(value));
-    window.SchemaUI.applySelectField(nsfwSelect, nsfwField, (value) => String(value) === 'true' ? 'true' : 'false');
+    window.SchemaUI.renderSelectField(ratioSelect, ratioField, { labelElement: ratioLabel, formatter: (value) => String(value) });
+    window.SchemaUI.renderSelectField(nsfwSelect, nsfwField, { labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' });
 
     if (promptInput) {
-      promptInput.placeholder = (promptField && promptField.ui && promptField.ui.label) || promptInput.placeholder;
-      window.SchemaUI.setTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
-      if (promptField && promptField.min_length !== undefined) {
-        promptInput.minLength = Number(promptField.min_length) || 0;
-      }
+      window.SchemaUI.renderTextField(promptInput, promptField, { widthTarget: promptInput.closest('.settings-block') || promptInput });
     }
-    window.SchemaUI.setTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
-    window.SchemaUI.setTitle(nsfwSelect, nsfwField && nsfwField.ui && nsfwField.ui.description);
     window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 
-    if (ratioLabel && ratioField && ratioField.ui) {
-      window.SchemaUI.applyFieldUiBlock(ratioField, ratioSelect, { labelElement: ratioLabel });
-    }
     if (concurrentLabel) {
       window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
-    }
-    if (nsfwLabel && nsfwField && nsfwField.ui) {
-      window.SchemaUI.applyFieldUiBlock(nsfwField, nsfwSelect, { labelElement: nsfwLabel });
     }
 
     if (startBtn && scene.ui && scene.ui.submit_label) {
       startBtn.textContent = scene.ui.submit_label;
       startBtn.title = scene.ui.submit_label;
-    }
-
-    if (promptField && promptField.ui && promptInput) {
-      window.SchemaUI.applyFieldUiBlock(promptField, promptInput, { widthTarget: promptInput.closest('.settings-block') || promptInput });
     }
 
     if (settingsContent) {
