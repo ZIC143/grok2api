@@ -2,16 +2,16 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
+from urllib import error, parse, request
 
 
 RESOURCE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,62}[A-Za-z0-9]$")
 
 
 class WranglerCommandError(RuntimeError):
-    """Raised when a Wrangler command fails."""
+    """Raised when a Cloudflare API request fails."""
 
 
 def validate_resource_name(value: str, label: str) -> str:
@@ -28,77 +28,121 @@ def validate_resource_name(value: str, label: str) -> str:
     return normalized
 
 
-def parse_json_output(output: str) -> list | dict:
-    text = (output or "").strip()
-    if not text:
-        return {}
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        start = min(
-            [idx for idx in (text.find("{"), text.find("[")) if idx != -1],
-            default=-1,
-        )
-        if start == -1:
-            raise
-        return json.loads(text[start:])
+def get_api_base(account_id: str) -> str:
+    return f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
 
 
-def run_wrangler(args: list[str]) -> str:
-    env = os.environ.copy()
-    env.setdefault("WRANGLER_LOG", "error")
+def call_cloudflare_api(
+    account_id: str,
+    api_token: str,
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    query: dict[str, str] | None = None,
+) -> dict:
+    url = f"{get_api_base(account_id)}{path}"
+    if query:
+        url = f"{url}?{parse.urlencode(query)}"
+
+    data = None
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json",
+    }
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+
+    req = request.Request(url, data=data, headers=headers, method=method)
     try:
-        result = subprocess.run(
-            ["wrangler", *args],
-            check=True,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-    except subprocess.CalledProcessError as exc:
-        stderr = (exc.stderr or "").strip()
-        stdout = (exc.stdout or "").strip()
-        detail = stderr or stdout or str(exc)
+        with request.urlopen(req) as response:
+            body = response.read().decode("utf-8")
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
         raise WranglerCommandError(
-            f"Wrangler command failed: wrangler {' '.join(args)}\n{detail}"
+            f"Cloudflare API request failed: {method} {path}\n{body}"
         ) from exc
-    return result.stdout.strip()
+    except error.URLError as exc:
+        raise WranglerCommandError(
+            f"Cloudflare API request failed: {method} {path}\n{exc}"
+        ) from exc
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise WranglerCommandError(
+            f"Cloudflare API returned non-JSON response for {method} {path}: {body}"
+        ) from exc
+
+    if not data.get("success", False):
+        errors = data.get("errors") or []
+        raise WranglerCommandError(
+            f"Cloudflare API reported failure for {method} {path}: {errors}"
+        )
+    return data
 
 
-def find_d1_id(name: str) -> str:
-    output = run_wrangler(["d1", "list", "--json"])
-    for item in parse_json_output(output) or []:
+def list_d1_databases(account_id: str, api_token: str) -> list[dict]:
+    data = call_cloudflare_api(account_id, api_token, "GET", "/d1/database")
+    return data.get("result", [])
+
+
+def find_d1_id(account_id: str, api_token: str, name: str) -> str:
+    for item in list_d1_databases(account_id, api_token):
         if item.get("name") == name:
             return item.get("uuid", "") or item.get("id", "")
     return ""
 
 
-def create_d1(name: str) -> str:
-    output = run_wrangler(["d1", "create", name, "--json"])
-    data = parse_json_output(output)
-    if isinstance(data, dict):
-        result = data.get("result", data)
-        return result.get("uuid", "") or result.get("database_id", "") or result.get("id", "")
-    return ""
+def create_d1(account_id: str, api_token: str, name: str) -> str:
+    data = call_cloudflare_api(
+        account_id,
+        api_token,
+        "POST",
+        "/d1/database",
+        payload={"name": name},
+    )
+    result = data.get("result", {})
+    return result.get("uuid", "") or result.get("database_id", "") or result.get("id", "")
 
 
-def find_kv_id(name: str) -> str:
-    output = run_wrangler(["kv", "namespace", "list", "--json"])
-    for item in parse_json_output(output) or []:
+def list_kv_namespaces(account_id: str, api_token: str) -> list[dict]:
+    namespaces: list[dict] = []
+    page = 1
+    while True:
+        data = call_cloudflare_api(
+            account_id,
+            api_token,
+            "GET",
+            "/storage/kv/namespaces",
+            query={"page": str(page), "per_page": "100"},
+        )
+        batch = data.get("result", [])
+        namespaces.extend(batch)
+        result_info = data.get("result_info", {})
+        total_pages = int(result_info.get("total_pages") or 1)
+        if page >= total_pages:
+            break
+        page += 1
+    return namespaces
+
+
+def find_kv_id(account_id: str, api_token: str, name: str) -> str:
+    for item in list_kv_namespaces(account_id, api_token):
         if item.get("title") == name:
             return item.get("id", "")
     return ""
 
 
-def create_kv(name: str) -> str:
-    output = run_wrangler(["kv", "namespace", "create", name, "--json"])
-    data = parse_json_output(output)
-    if isinstance(data, dict):
-        if "id" in data:
-            return data["id"]
-        result = data.get("result", {})
-        return result.get("id", "")
-    return ""
+def create_kv(account_id: str, api_token: str, name: str) -> str:
+    data = call_cloudflare_api(
+        account_id,
+        api_token,
+        "POST",
+        "/storage/kv/namespaces",
+        payload={"title": name},
+    )
+    result = data.get("result", {})
+    return result.get("id", "")
 
 
 def main() -> int:
@@ -118,9 +162,9 @@ def main() -> int:
         if not api_token:
             raise ValueError("CLOUDFLARE_API_TOKEN must not be empty")
 
-        d1_id = find_d1_id(d1_name) or create_d1(d1_name)
-        kv_id = find_kv_id(kv_name) or create_kv(kv_name)
-    except (KeyError, ValueError, WranglerCommandError, json.JSONDecodeError) as exc:
+        d1_id = find_d1_id(account_id, api_token, d1_name) or create_d1(account_id, api_token, d1_name)
+        kv_id = find_kv_id(account_id, api_token, kv_name) or create_kv(account_id, api_token, kv_name)
+    except (KeyError, ValueError, WranglerCommandError) as exc:
         print(f"Cloudflare resource preparation failed: {exc}", file=sys.stderr)
         return 1
 
