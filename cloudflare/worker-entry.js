@@ -208,6 +208,97 @@ function getFunctionBootstrapConfig(config) {
   };
 }
 
+function getTaskCapabilitySummary(config) {
+  return {
+    status: 'ok',
+    worker_bridge_mode: 'read-only-capability-probe',
+    scenes: {
+      chat: {
+        enabled: true,
+        execution_supported: false,
+        init_supported: true,
+        models_supported: true,
+        attachment_supported: true,
+        streaming_supported: false,
+        max_context_messages: 5,
+      },
+      imagine: {
+        enabled: getFunctionAccessSummary(config).enabled,
+        execution_supported: false,
+        init_supported: true,
+        ws_supported: false,
+        sse_supported: false,
+        download_supported: false,
+        concurrent_hint: Number(config.image?.blocked_parallel_attempts || 1),
+      },
+      video: {
+        enabled: getFunctionAccessSummary(config).enabled,
+        execution_supported: false,
+        init_supported: true,
+        sse_supported: false,
+        image_reference_supported: true,
+        reasoning_effort_supported: true,
+      },
+    },
+  };
+}
+
+function getTaskLimitSummary(config) {
+  return {
+    status: 'ok',
+    limits: {
+      chat: {
+        temperature: { min: 0, max: 2, default: 0.8 },
+        top_p: { min: 0, max: 1, default: 0.95 },
+        reasoning_efforts: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
+      },
+      imagine: {
+        aspect_ratios: ['1:1', '2:3', '3:2', '9:16', '16:9'],
+        response_formats: ['url', 'b64_json', 'base64'],
+        sizes: ['1024x1024', '1280x720', '720x1280', '1792x1024', '1024x1792'],
+        final_min_bytes: Number(config.image?.final_min_bytes || 0),
+        medium_min_bytes: Number(config.image?.medium_min_bytes || 0),
+      },
+      video: {
+        aspect_ratios: ['16:9', '9:16', '3:2', '2:3', '1:1'],
+        video_length: { min: 6, max: 30, defaults: [6, 10, 15, 20, 30] },
+        resolution_names: ['480p', '720p'],
+        presets: ['fun', 'normal', 'spicy', 'custom'],
+        reasoning_efforts: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
+      },
+    },
+  };
+}
+
+function getTaskRestrictionSummary(config) {
+  return {
+    status: 'ok',
+    restrictions: {
+      runtime: [
+        'no-long-running-jobs',
+        'no-stream-pass-through',
+        'no-websocket-bridge',
+        'no-file-upload-bridge',
+      ],
+      chat: [
+        'chat-completions-not-bridged',
+        'streaming-disabled-in-worker-bridge',
+      ],
+      imagine: [
+        'start-stop-not-bridged',
+        'ws-disabled-in-worker-bridge',
+        'sse-disabled-in-worker-bridge',
+      ],
+      video: [
+        'start-stop-not-bridged',
+        'sse-disabled-in-worker-bridge',
+        'generation-disabled-in-worker-bridge',
+      ],
+      access: getFunctionAccessSummary(config),
+    },
+  };
+}
+
 const DEFAULT_RUNTIME_CONFIG = {
   app: {
     app_url: '',
@@ -894,6 +985,9 @@ async function getOpenAIMetadata(env) {
       function_chat_config: '/v1/function/chat/config',
       function_imagine_config: '/v1/function/imagine/config',
       function_video_config: '/v1/function/video/config',
+      function_capabilities: '/v1/function/capabilities',
+      function_limits: '/v1/function/limits',
+      function_restrictions: '/v1/function/restrictions',
       runtime_status: '/v1/runtime/status',
       runtime_checks: '/v1/runtime/checks',
       runtime_storage: '/v1/runtime/storage',
@@ -910,6 +1004,9 @@ async function getOpenAIMetadata(env) {
       function_chat_config: true,
       function_imagine_config: true,
       function_video_config: true,
+      function_capabilities: true,
+      function_limits: true,
+      function_restrictions: true,
       runtime_status: true,
       runtime_checks: true,
       runtime_storage: true,
@@ -958,7 +1055,7 @@ export default {
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections', '/v1/admin/verify', '/v1/admin/config', '/v1/function/verify', '/v1/function/bootstrap', '/v1/function/chat/config', '/v1/function/imagine/config', '/v1/function/video/config', '/v1/function/capabilities', '/v1/function/limits', '/v1/function/restrictions', '/v1/models', '/v1/models/:id', '/v1/runtime/status', '/v1/runtime/checks', '/v1/runtime/storage', '/v1/config/summary', '/v1/metadata'],
         sections: Object.keys(runtimeConfig.config),
       });
     }
@@ -997,6 +1094,21 @@ export default {
     if (url.pathname === '/v1/function/video/config' && request.method === 'GET') {
       const runtimeConfig = await getRuntimeConfig(env);
       return json(getVideoInitConfig(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/capabilities' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getTaskCapabilitySummary(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/limits' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getTaskLimitSummary(runtimeConfig.config));
+    }
+
+    if (url.pathname === '/v1/function/restrictions' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json(getTaskRestrictionSummary(runtimeConfig.config));
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
