@@ -94,7 +94,7 @@
     const parts = window.SceneAssembly.getSceneParts(manifest, 'chat');
     if (!parts) return;
 
-    const { scene, bootstrap, schema, ui, fieldMap } = parts;
+    const { bootstrap, ui, fieldMap } = parts;
 
     const availableModels = Array.isArray(bootstrap.models && bootstrap.models.available)
       ? bootstrap.models.available
@@ -125,12 +125,16 @@
       systemInput.value = defaults.custom_instruction;
     }
 
-    applyChatFieldUi(fieldMap, 'model', modelChip);
-    applyChatFieldUi(fieldMap, 'messages', promptInput);
-    applyChatFieldUi(fieldMap, 'temperature', tempRange);
-    applyChatFieldUi(fieldMap, 'top_p', topPRange);
-    applyChatFieldUi(fieldMap, 'reasoning_effort', settingsToggle);
-    applyChatFieldUi(fieldMap, 'messages', attachBtn);
+    window.SceneAssembly.applySceneFields(parts, {
+      fieldHandlers: [
+        { fieldName: 'model', apply: () => applyChatFieldUi(fieldMap, 'model', modelChip) },
+        { fieldName: 'messages', apply: () => applyChatFieldUi(fieldMap, 'messages', promptInput) },
+        { fieldName: 'temperature', apply: () => applyChatFieldUi(fieldMap, 'temperature', tempRange) },
+        { fieldName: 'top_p', apply: () => applyChatFieldUi(fieldMap, 'top_p', topPRange) },
+        { fieldName: 'reasoning_effort', apply: () => applyChatFieldUi(fieldMap, 'reasoning_effort', settingsToggle) },
+        { fieldName: 'messages', apply: () => applyChatFieldUi(fieldMap, 'messages', attachBtn) },
+      ],
+    });
     applyChatFieldSchema(fieldMap);
 
     if (promptInput && ui.title) {

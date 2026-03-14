@@ -55,7 +55,7 @@
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
-    const { scene, bootstrap, schema, fieldMap } = parts;
+    const { scene, bootstrap, fieldMap } = parts;
 
     if (Number.isFinite(Number(bootstrap.final_min_bytes))) {
       finalMinBytesDefault = Number(bootstrap.final_min_bytes);
@@ -63,10 +63,6 @@
 
     const defaults = bootstrap.defaults || {};
     const options = bootstrap.options || {};
-    const ratioField = fieldMap.get('aspect_ratio');
-    const nsfwField = fieldMap.get('nsfw');
-    const promptField = fieldMap.get('prompt');
-
     window.SchemaUI.setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '2:3');
     if (nsfwSelect && typeof defaults.nsfw === 'boolean') {
       nsfwSelect.value = defaults.nsfw ? 'true' : 'false';
@@ -76,15 +72,14 @@
     if (concurrentSelect && concurrentField && Array.isArray(concurrentField.options)) {
       window.SchemaUI.setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
     }
-    window.SchemaUI.renderSelectField(ratioSelect, ratioField, { labelElement: ratioLabel, formatter: (value) => String(value) });
-    window.SchemaUI.renderSelectField(nsfwSelect, nsfwField, { labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' });
-    if (concurrentField) {
-      window.SchemaUI.renderSelectField(concurrentSelect, concurrentField, { labelElement: concurrentLabel, formatter: (value) => `${value}` });
-    }
-
-    if (promptInput) {
-      window.SchemaUI.renderTextField(promptInput, promptField, { widthTarget: promptInput.closest('.settings-block') || promptInput });
-    }
+    window.SceneAssembly.applySceneFields(parts, {
+      fieldHandlers: [
+        { fieldName: 'aspect_ratio', apply: (field) => window.SchemaUI.renderSelectField(ratioSelect, field, { labelElement: ratioLabel, formatter: (value) => String(value) }) },
+        { fieldName: 'nsfw', apply: (field) => window.SchemaUI.renderSelectField(nsfwSelect, field, { labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' }) },
+        { fieldName: 'concurrent', apply: (field) => field && window.SchemaUI.renderSelectField(concurrentSelect, field, { labelElement: concurrentLabel, formatter: (value) => `${value}` }) },
+        { fieldName: 'prompt', apply: (field) => promptInput && window.SchemaUI.renderTextField(promptInput, field, { widthTarget: promptInput.closest('.settings-block') || promptInput }) },
+      ],
+    });
     window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 

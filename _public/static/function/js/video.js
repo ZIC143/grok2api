@@ -52,26 +52,28 @@
   function applyVideoManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
     if (!parts) return;
-    const { scene, bootstrap, schema, ui, fieldMap } = parts;
+    const { bootstrap, ui, fieldMap } = parts;
 
     const defaults = bootstrap.defaults || {};
     const options = bootstrap.options || {};
-    const ratioField = fieldMap.get('aspect_ratio');
     const lengthField = fieldMap.get('video_length');
-    const resolutionField = fieldMap.get('resolution_name');
-    const presetField = fieldMap.get('preset');
     const imageField = fieldMap.get('image_url');
-    const promptField = fieldMap.get('prompt');
 
     defaultReasoningEffort = String(defaults.reasoning_effort || defaultReasoningEffort);
     window.SchemaUI.setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '3:2');
     window.SchemaUI.setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
     window.SchemaUI.setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
     window.SchemaUI.setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
-    window.SchemaUI.renderSelectField(ratioSelect, ratioField, { labelElement: ratioLabel, formatter: (value) => String(value) });
-    window.SchemaUI.renderSelectField(lengthSelect, lengthField, { labelElement: lengthLabel, formatter: (value) => `${value}s` });
-    window.SchemaUI.renderSelectField(resolutionSelect, resolutionField, { labelElement: resolutionLabel, formatter: (value) => String(value) });
-    window.SchemaUI.renderSelectField(presetSelect, presetField, { labelElement: presetLabel, formatter: (value) => String(value) });
+    window.SceneAssembly.applySceneFields(parts, {
+      fieldHandlers: [
+        { fieldName: 'aspect_ratio', apply: (field) => window.SchemaUI.renderSelectField(ratioSelect, field, { labelElement: ratioLabel, formatter: (value) => String(value) }) },
+        { fieldName: 'video_length', apply: (field) => window.SchemaUI.renderSelectField(lengthSelect, field, { labelElement: lengthLabel, formatter: (value) => `${value}s` }) },
+        { fieldName: 'resolution_name', apply: (field) => window.SchemaUI.renderSelectField(resolutionSelect, field, { labelElement: resolutionLabel, formatter: (value) => String(value) }) },
+        { fieldName: 'preset', apply: (field) => window.SchemaUI.renderSelectField(presetSelect, field, { labelElement: presetLabel, formatter: (value) => String(value) }) },
+        { fieldName: 'image_url', apply: (field) => field && imageUrlInput && window.SchemaUI.renderTextField(imageUrlInput, field, { labelElement: imageUrlLabel, widthTarget: imageUrlInput.closest('.settings-block') || imageUrlInput }) },
+        { fieldName: 'prompt', apply: (field) => promptInput && window.SchemaUI.renderTextField(promptInput, field, { widthTarget: promptInput.closest('.settings-block') || promptInput }) },
+      ],
+    });
 
     if (lengthField && typeof lengthField.min === 'number') {
       lengthSelect.min = String(lengthField.min);
@@ -81,13 +83,6 @@
     }
     if (imageField && imageField.format === 'url-or-data-uri' && imageUrlInput) {
       imageUrlInput.pattern = '^(https?://.+|data:.+)$';
-    }
-    if (imageField && imageUrlInput) {
-      window.SchemaUI.renderTextField(imageUrlInput, imageField, { labelElement: imageUrlLabel, widthTarget: imageUrlInput.closest('.settings-block') || imageUrlInput });
-    }
-
-    if (promptInput) {
-      window.SchemaUI.renderTextField(promptInput, promptField, { widthTarget: promptInput.closest('.settings-block') || promptInput });
     }
     window.SchemaUI.setTitle(statusText, ui.description);
 

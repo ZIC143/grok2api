@@ -72,10 +72,21 @@ function applySceneSections(parts, options = {}) {
   }
 }
 
+function applySceneFields(parts, options = {}) {
+  if (!parts || !Array.isArray(options.fieldHandlers)) return;
+  const { fieldMap } = parts;
+  options.fieldHandlers.forEach((handler) => {
+    if (!handler || !handler.fieldName || typeof handler.apply !== 'function') return;
+    const field = fieldMap.get(handler.fieldName);
+    handler.apply(field, parts);
+  });
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
   getSceneParts,
   applySceneMeta,
   applySceneSections,
+  applySceneFields,
 };
