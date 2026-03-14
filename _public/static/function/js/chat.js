@@ -75,27 +75,17 @@
   function applyChatFieldSchema(fieldMap) {
     const temperatureField = fieldMap.get('temperature');
     if (temperatureField && tempRange) {
-      if (temperatureField.min !== undefined) tempRange.min = String(temperatureField.min);
-      if (temperatureField.max !== undefined) tempRange.max = String(temperatureField.max);
-      if (temperatureField.step !== undefined) tempRange.step = String(temperatureField.step);
-      if (tempLabel && temperatureField.ui) {
-        window.SchemaUI.applyFieldUiBlock(temperatureField, tempRange, { labelElement: tempLabel });
-      }
+      window.SchemaUI.renderRangeField(tempRange, temperatureField, { labelElement: tempLabel });
     }
 
     const topPField = fieldMap.get('top_p');
     if (topPField && topPRange) {
-      if (topPField.min !== undefined) topPRange.min = String(topPField.min);
-      if (topPField.max !== undefined) topPRange.max = String(topPField.max);
-      if (topPField.step !== undefined) topPRange.step = String(topPField.step);
-      if (topPLabel && topPField.ui) {
-        window.SchemaUI.applyFieldUiBlock(topPField, topPRange, { labelElement: topPLabel });
-      }
+      window.SchemaUI.renderRangeField(topPRange, topPField, { labelElement: topPLabel });
     }
 
     const messagesField = fieldMap.get('messages');
     if (messagesField && messagesField.ui && systemLabel) {
-      window.SchemaUI.applyFieldUiBlock(messagesField, systemInput, { labelElement: systemLabel, widthTarget: systemInput.closest('.settings-block') || systemInput });
+      window.SchemaUI.renderTextField(systemInput, messagesField, { labelElement: systemLabel, widthTarget: systemInput.closest('.settings-block') || systemInput });
     }
 
     const reasoningField = fieldMap.get('reasoning_effort');

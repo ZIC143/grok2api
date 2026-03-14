@@ -91,6 +91,9 @@
     }
     window.SchemaUI.renderSelectField(ratioSelect, ratioField, { labelElement: ratioLabel, formatter: (value) => String(value) });
     window.SchemaUI.renderSelectField(nsfwSelect, nsfwField, { labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' });
+    if (concurrentField) {
+      window.SchemaUI.renderSelectField(concurrentSelect, concurrentField, { labelElement: concurrentLabel, formatter: (value) => `${value}` });
+    }
 
     if (promptInput) {
       window.SchemaUI.renderTextField(promptInput, promptField, { widthTarget: promptInput.closest('.settings-block') || promptInput });
@@ -98,7 +101,7 @@
     window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 
-    if (concurrentLabel) {
+    if (concurrentLabel && !concurrentField) {
       window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
     }
 

@@ -187,6 +187,26 @@ function schemaRenderTextField(input, field, options = {}) {
   });
 }
 
+function schemaRenderRangeField(input, field, options = {}) {
+  if (!input || !field) return;
+  if (field.min !== undefined) {
+    input.min = String(field.min);
+  }
+  if (field.max !== undefined) {
+    input.max = String(field.max);
+  }
+  if (field.step !== undefined) {
+    input.step = String(field.step);
+  }
+  if (field.default !== undefined && (input.value === '' || input.value === null)) {
+    input.value = String(field.default);
+  }
+  schemaApplyFieldUiBlock(field, input, {
+    labelElement: options.labelElement,
+    widthTarget: options.widthTarget,
+  });
+}
+
 window.SchemaUI = {
   setTitle: schemaSetTitle,
   setText: schemaSetText,
@@ -202,4 +222,5 @@ window.SchemaUI = {
   applySectionPresentation: schemaApplySectionPresentation,
   renderSelectField: schemaRenderSelectField,
   renderTextField: schemaRenderTextField,
+  renderRangeField: schemaRenderRangeField,
 };

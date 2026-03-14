@@ -96,16 +96,14 @@
     if (imageField && imageField.format === 'url-or-data-uri' && imageUrlInput) {
       imageUrlInput.pattern = '^(https?://.+|data:.+)$';
     }
+    if (imageField && imageUrlInput) {
+      window.SchemaUI.renderTextField(imageUrlInput, imageField, { labelElement: imageUrlLabel, widthTarget: imageUrlInput.closest('.settings-block') || imageUrlInput });
+    }
 
     if (promptInput) {
       window.SchemaUI.renderTextField(promptInput, promptField, { widthTarget: promptInput.closest('.settings-block') || promptInput });
     }
-    window.SchemaUI.setTitle(imageUrlInput, imageField && imageField.ui && imageField.ui.description);
     window.SchemaUI.setTitle(statusText, ui.description);
-
-    if (imageUrlLabel && imageField && imageField.ui) {
-      window.SchemaUI.applyFieldUiBlock(imageField, imageUrlInput, { labelElement: imageUrlLabel });
-    }
 
     if (settingsGrid) {
       window.SchemaUI.updateFieldOrder(settingsGrid, [
