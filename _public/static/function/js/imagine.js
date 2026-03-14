@@ -84,11 +84,19 @@
       { fieldName: 'concurrent', kind: 'select', element: concurrentSelect, labelElement: concurrentLabel, formatter: (value) => `${value}` },
       { fieldName: 'prompt', kind: 'text', element: promptInput, widthTarget: window.SceneAssembly.resolveFieldContainer(promptInput) },
     ]);
-    window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
-
-    if (concurrentLabel && !concurrentField) {
-      window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
-    }
+    window.SceneAssembly.applySceneNotePlan(parts, [
+      {
+        fieldName: 'concurrent',
+        titleElement: concurrentSelect,
+        titleText: '并发数量目前仍由前端控件决定，后续可继续服务端化',
+      },
+      {
+        fieldName: 'concurrent',
+        when: () => concurrentLabel && !concurrentField,
+        descriptionElement: concurrentLabel,
+        descriptionText: '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。',
+      },
+    ]);
 
     const imagineSettingsGrid = settingsContent ? settingsContent.querySelector('.settings-grid') : null;
     window.SceneAssembly.applyScenePresentationPlan(parts, {

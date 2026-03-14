@@ -163,6 +163,28 @@ function applyFieldEffectPlan(parts, effectPlan = []) {
   });
 }
 
+function applySceneNotePlan(parts, notePlan = []) {
+  if (!parts || !Array.isArray(notePlan)) return;
+  applySceneFields(parts, {
+    fieldHandlers: notePlan.map((entry) => ({
+      fieldName: entry && entry.fieldName,
+      apply: (field) => {
+        if (!entry || !field) return;
+        if (typeof entry.when === 'function' && !entry.when(field, parts)) return;
+        if (entry.titleElement && entry.titleText) {
+          window.SchemaUI.setTitle(entry.titleElement, entry.titleText);
+        }
+        if (entry.descriptionElement && entry.descriptionText) {
+          window.SchemaUI.ensureFieldDescription(entry.descriptionElement, entry.descriptionText);
+        }
+        if (typeof entry.apply === 'function') {
+          entry.apply(field, parts);
+        }
+      },
+    })),
+  });
+}
+
 function applyBootstrapDefaults(parts, options = {}) {
   if (!parts) return;
   const { bootstrap, fieldMap } = parts;
@@ -255,6 +277,7 @@ window.SceneAssembly = {
   applyFieldRenderPlan,
   applyFieldUiPlan,
   applyFieldEffectPlan,
+  applySceneNotePlan,
   applyBootstrapDefaults,
   applyScenePresentation,
   applyScenePresentationPlan,
