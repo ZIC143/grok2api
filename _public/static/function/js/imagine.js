@@ -92,11 +92,6 @@
       window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
     }
 
-    if (startBtn && scene.ui && scene.ui.submit_label) {
-      startBtn.textContent = scene.ui.submit_label;
-      startBtn.title = scene.ui.submit_label;
-    }
-
     if (settingsContent) {
       const settingsGrid = settingsContent.querySelector('.settings-grid');
       if (settingsGrid) {
@@ -116,12 +111,12 @@
       content: promptInput ? promptInput.closest('.settings-block') : null,
       basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
     });
-    if (imagineTitle && scene.ui && scene.ui.title) {
-      imagineTitle.textContent = scene.ui.title;
-    }
-    if (scene.access) {
-      window.SchemaUI.setVisibility(startBtn, scene.access.enabled !== false);
-    }
+    window.SceneAssembly.applySceneMeta(parts, {
+      statusElement: statusText,
+      titleElement: imagineTitle,
+      submitButton: startBtn,
+      visibilityTarget: startBtn,
+    });
   }
 
   function toast(message, type) {

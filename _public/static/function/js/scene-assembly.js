@@ -22,8 +22,41 @@ function getSceneParts(manifest, sceneName) {
   };
 }
 
+function applySceneMeta(parts, options = {}) {
+  if (!parts) return;
+  const { scene, schema, ui } = parts;
+
+  if (options.statusElement && ui.description) {
+    options.statusElement.textContent = ui.description;
+    options.statusElement.title = ui.description;
+  }
+  if (options.titleElement && ui.title) {
+    options.titleElement.textContent = ui.title;
+  }
+  if (options.submitButton && ui.submit_label) {
+    options.submitButton.textContent = ui.submit_label;
+    options.submitButton.title = ui.submit_label;
+  }
+  if (options.layoutElement && Array.isArray(schema.sections)) {
+    const layoutSummary = schema.sections
+      .map((section) => `${section.label}${section.description ? `：${section.description}` : ''}`)
+      .join(' | ');
+    if (layoutSummary) {
+      options.layoutElement.dataset.layoutHint = layoutSummary;
+      options.layoutElement.title = layoutSummary;
+    }
+    if (schema.ui && schema.ui.title) {
+      options.layoutElement.dataset.dynamicTitle = schema.ui.title;
+    }
+  }
+  if (options.visibilityTarget && scene.access) {
+    window.SchemaUI.setVisibility(options.visibilityTarget, scene.access.enabled !== false);
+  }
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
   getSceneParts,
+  applySceneMeta,
 };

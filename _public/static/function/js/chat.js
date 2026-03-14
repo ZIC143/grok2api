@@ -136,26 +136,12 @@
     if (promptInput && ui.title) {
       promptInput.placeholder = ui.title;
     }
-    if (statusText && ui.description) {
-      statusText.textContent = ui.description;
-      statusText.title = ui.description;
-    }
-    if (sendBtn && ui.submit_label) {
-      sendBtn.textContent = ui.submit_label;
-      sendBtn.title = ui.submit_label;
-    }
-    if (settingsPanel && Array.isArray(schema.sections)) {
-      const layoutSummary = schema.sections
-        .map((section) => `${section.label}${section.description ? `：${section.description}` : ''}`)
-        .join(' | ');
-      if (layoutSummary) {
-        settingsPanel.dataset.layoutHint = layoutSummary;
-        settingsPanel.title = layoutSummary;
-      }
-    }
-    if (settingsPanel && schema.ui && schema.ui.title) {
-      settingsPanel.dataset.dynamicTitle = schema.ui.title;
-    }
+    window.SceneAssembly.applySceneMeta(parts, {
+      statusElement: statusText,
+      titleElement: chatTitle,
+      submitButton: sendBtn,
+      layoutElement: settingsPanel,
+    });
     if (settingsGrid) {
       const temperatureField = fieldMap.get('temperature');
       const topPField = fieldMap.get('top_p');

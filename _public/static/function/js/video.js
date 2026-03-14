@@ -114,16 +114,12 @@
       advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
     });
 
-    if (startBtn && ui.submit_label) {
-      startBtn.textContent = ui.submit_label;
-      startBtn.title = ui.submit_label;
-    }
-    if (videoTitle && ui.title) {
-      videoTitle.textContent = ui.title;
-    }
-    if (scene.access) {
-      window.SchemaUI.setVisibility(startBtn, scene.access.enabled !== false);
-    }
+    window.SceneAssembly.applySceneMeta(parts, {
+      statusElement: statusText,
+      titleElement: videoTitle,
+      submitButton: startBtn,
+      visibilityTarget: startBtn,
+    });
     updateMeta();
   }
 
