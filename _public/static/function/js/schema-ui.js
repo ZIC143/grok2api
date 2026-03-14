@@ -118,6 +118,49 @@ function schemaApplyFieldUiBlock(field, element, options = {}) {
   }
 }
 
+function schemaEnsureSectionHeader(sectionElement, section) {
+  if (!sectionElement || !section) return null;
+  let header = sectionElement.querySelector(':scope > .schema-section-header');
+  if (!header) {
+    header = document.createElement('div');
+    header.className = 'schema-section-header';
+    header.style.marginBottom = '8px';
+    const title = document.createElement('div');
+    title.className = 'schema-section-title';
+    title.style.fontSize = '13px';
+    title.style.fontWeight = '600';
+    const desc = document.createElement('div');
+    desc.className = 'schema-section-desc';
+    desc.style.fontSize = '12px';
+    desc.style.opacity = '0.7';
+    desc.style.marginTop = '2px';
+    header.appendChild(title);
+    header.appendChild(desc);
+    sectionElement.insertBefore(header, sectionElement.firstChild);
+  }
+  const titleEl = header.querySelector('.schema-section-title');
+  const descEl = header.querySelector('.schema-section-desc');
+  if (titleEl) {
+    titleEl.textContent = section.label || section.id || '';
+  }
+  if (descEl) {
+    descEl.textContent = section.description || '';
+    descEl.style.display = section.description ? '' : 'none';
+  }
+  return header;
+}
+
+function schemaApplySectionPresentation(container, sections, sectionElements) {
+  if (!container || !Array.isArray(sections) || !sectionElements) return;
+  sections.forEach((section) => {
+    const sectionEl = sectionElements[section.id];
+    if (!sectionEl) return;
+    schemaEnsureSectionHeader(sectionEl, section);
+    sectionEl.dataset.sectionLayout = section.layout || 'stack';
+    sectionEl.dataset.sectionColumns = String(section.columns || 1);
+  });
+}
+
 window.SchemaUI = {
   setTitle: schemaSetTitle,
   setText: schemaSetText,
@@ -129,4 +172,6 @@ window.SchemaUI = {
   setVisibility: schemaSetVisibility,
   applyFieldWidth: schemaApplyFieldWidth,
   applyFieldUiBlock: schemaApplyFieldUiBlock,
+  ensureSectionHeader: schemaEnsureSectionHeader,
+  applySectionPresentation: schemaApplySectionPresentation,
 };

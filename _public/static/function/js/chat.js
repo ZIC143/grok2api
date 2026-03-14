@@ -195,6 +195,11 @@
       content: systemInput ? systemInput.closest('.settings-block') : null,
       advanced: topPRange ? topPRange.closest('.settings-block') : null,
     });
+    window.SchemaUI.applySectionPresentation(settingsGrid, schema.sections || [], {
+      basic: tempRange ? tempRange.closest('.settings-block') : null,
+      content: systemInput ? systemInput.closest('.settings-block') : null,
+      advanced: topPRange ? topPRange.closest('.settings-block') : null,
+    });
     if (chatTitle && ui.title) {
       chatTitle.textContent = ui.title;
     }

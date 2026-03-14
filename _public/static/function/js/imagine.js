@@ -138,6 +138,10 @@
       content: promptInput ? promptInput.closest('.settings-block') : null,
       basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
     });
+    window.SchemaUI.applySectionPresentation(settingsContent, schema.sections || [], {
+      content: promptInput ? promptInput.closest('.settings-block') : null,
+      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+    });
     if (imagineTitle && scene.ui && scene.ui.title) {
       imagineTitle.textContent = scene.ui.title;
     }

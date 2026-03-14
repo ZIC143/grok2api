@@ -148,6 +148,12 @@
       quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
       advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
     });
+    window.SchemaUI.applySectionPresentation(settingsGrid, schema.sections || [], {
+      content: promptInput ? promptInput.closest('.settings-block') : null,
+      basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+      quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
+      advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
+    });
 
     if (startBtn && ui.submit_label) {
       startBtn.textContent = ui.submit_label;
