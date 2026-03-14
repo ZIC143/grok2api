@@ -71,16 +71,25 @@
         },
       ],
     });
-    window.SceneAssembly.applySceneFields(parts, {
-      fieldHandlers: [
-        { fieldName: 'aspect_ratio', apply: (field) => window.SchemaUI.renderSelectField(ratioSelect, field, { labelElement: ratioLabel, formatter: (value) => String(value) }) },
-        { fieldName: 'video_length', apply: (field) => window.SchemaUI.renderSelectField(lengthSelect, field, { labelElement: lengthLabel, formatter: (value) => `${value}s` }) },
-        { fieldName: 'resolution_name', apply: (field) => window.SchemaUI.renderSelectField(resolutionSelect, field, { labelElement: resolutionLabel, formatter: (value) => String(value) }) },
-        { fieldName: 'preset', apply: (field) => window.SchemaUI.renderSelectField(presetSelect, field, { labelElement: presetLabel, formatter: (value) => String(value) }) },
-        { fieldName: 'image_url', apply: (field) => field && imageUrlInput && window.SchemaUI.renderTextField(imageUrlInput, field, { labelElement: imageUrlLabel, widthTarget: imageUrlInput.closest('.settings-block') || imageUrlInput }) },
-        { fieldName: 'prompt', apply: (field) => promptInput && window.SchemaUI.renderTextField(promptInput, field, { widthTarget: promptInput.closest('.settings-block') || promptInput }) },
-      ],
-    });
+    window.SceneAssembly.applyFieldRenderPlan(parts, [
+      { fieldName: 'aspect_ratio', kind: 'select', element: ratioSelect, labelElement: ratioLabel, formatter: (value) => String(value) },
+      { fieldName: 'video_length', kind: 'select', element: lengthSelect, labelElement: lengthLabel, formatter: (value) => `${value}s` },
+      { fieldName: 'resolution_name', kind: 'select', element: resolutionSelect, labelElement: resolutionLabel, formatter: (value) => String(value) },
+      { fieldName: 'preset', kind: 'select', element: presetSelect, labelElement: presetLabel, formatter: (value) => String(value) },
+      {
+        fieldName: 'image_url',
+        kind: 'text',
+        element: imageUrlInput,
+        labelElement: imageUrlLabel,
+        widthTarget: imageUrlInput ? (imageUrlInput.closest('.settings-block') || imageUrlInput) : null,
+      },
+      {
+        fieldName: 'prompt',
+        kind: 'text',
+        element: promptInput,
+        widthTarget: promptInput ? (promptInput.closest('.settings-block') || promptInput) : null,
+      },
+    ]);
 
     if (lengthField && typeof lengthField.min === 'number') {
       lengthSelect.min = String(lengthField.min);

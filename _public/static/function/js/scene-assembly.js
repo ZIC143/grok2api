@@ -82,6 +82,44 @@ function applySceneFields(parts, options = {}) {
   });
 }
 
+function applyFieldRenderPlan(parts, renderPlan = []) {
+  if (!parts || !Array.isArray(renderPlan)) return;
+  applySceneFields(parts, {
+    fieldHandlers: renderPlan.map((entry) => ({
+      fieldName: entry && entry.fieldName,
+      apply: (field) => {
+        if (!entry || !entry.element || !field) return;
+        if (typeof entry.when === 'function' && !entry.when(field, parts)) return;
+        if (entry.kind === 'select') {
+          window.SchemaUI.renderSelectField(entry.element, field, {
+            labelElement: entry.labelElement,
+            widthTarget: entry.widthTarget,
+            formatter: entry.formatter,
+          });
+          return;
+        }
+        if (entry.kind === 'range') {
+          window.SchemaUI.renderRangeField(entry.element, field, {
+            labelElement: entry.labelElement,
+            widthTarget: entry.widthTarget,
+          });
+          return;
+        }
+        if (entry.kind === 'text') {
+          window.SchemaUI.renderTextField(entry.element, field, {
+            labelElement: entry.labelElement,
+            widthTarget: entry.widthTarget,
+          });
+          return;
+        }
+        if (typeof entry.apply === 'function') {
+          entry.apply(field, parts);
+        }
+      },
+    })),
+  });
+}
+
 function applyBootstrapDefaults(parts, options = {}) {
   if (!parts) return;
   const { bootstrap, fieldMap } = parts;
@@ -148,6 +186,7 @@ window.SceneAssembly = {
   applySceneMeta,
   applySceneSections,
   applySceneFields,
+  applyFieldRenderPlan,
   applyBootstrapDefaults,
   applyScenePresentation,
   getBootstrapModelConfig,

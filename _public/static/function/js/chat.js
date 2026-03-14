@@ -59,20 +59,18 @@
   }
 
   function applyChatFieldSchema(fieldMap) {
-    const temperatureField = fieldMap.get('temperature');
-    if (temperatureField && tempRange) {
-      window.SchemaUI.renderRangeField(tempRange, temperatureField, { labelElement: tempLabel });
-    }
-
-    const topPField = fieldMap.get('top_p');
-    if (topPField && topPRange) {
-      window.SchemaUI.renderRangeField(topPRange, topPField, { labelElement: topPLabel });
-    }
-
-    const messagesField = fieldMap.get('messages');
-    if (messagesField && messagesField.ui && systemLabel) {
-      window.SchemaUI.renderTextField(systemInput, messagesField, { labelElement: systemLabel, widthTarget: systemInput.closest('.settings-block') || systemInput });
-    }
+    window.SceneAssembly.applyFieldRenderPlan({ fieldMap }, [
+      { fieldName: 'temperature', kind: 'range', element: tempRange, labelElement: tempLabel },
+      { fieldName: 'top_p', kind: 'range', element: topPRange, labelElement: topPLabel },
+      {
+        fieldName: 'messages',
+        kind: 'text',
+        element: systemInput,
+        labelElement: systemLabel,
+        widthTarget: systemInput ? (systemInput.closest('.settings-block') || systemInput) : null,
+        when: (field) => !!(field && field.ui && systemLabel),
+      },
+    ]);
 
     const reasoningField = fieldMap.get('reasoning_effort');
     if (reasoningField && settingsToggle && reasoningField.ui) {

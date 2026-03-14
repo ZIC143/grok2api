@@ -78,14 +78,12 @@
     });
 
     const concurrentField = fieldMap.get('concurrent');
-    window.SceneAssembly.applySceneFields(parts, {
-      fieldHandlers: [
-        { fieldName: 'aspect_ratio', apply: (field) => window.SchemaUI.renderSelectField(ratioSelect, field, { labelElement: ratioLabel, formatter: (value) => String(value) }) },
-        { fieldName: 'nsfw', apply: (field) => window.SchemaUI.renderSelectField(nsfwSelect, field, { labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' }) },
-        { fieldName: 'concurrent', apply: (field) => field && window.SchemaUI.renderSelectField(concurrentSelect, field, { labelElement: concurrentLabel, formatter: (value) => `${value}` }) },
-        { fieldName: 'prompt', apply: (field) => promptInput && window.SchemaUI.renderTextField(promptInput, field, { widthTarget: promptInput.closest('.settings-block') || promptInput }) },
-      ],
-    });
+    window.SceneAssembly.applyFieldRenderPlan(parts, [
+      { fieldName: 'aspect_ratio', kind: 'select', element: ratioSelect, labelElement: ratioLabel, formatter: (value) => String(value) },
+      { fieldName: 'nsfw', kind: 'select', element: nsfwSelect, labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' },
+      { fieldName: 'concurrent', kind: 'select', element: concurrentSelect, labelElement: concurrentLabel, formatter: (value) => `${value}` },
+      { fieldName: 'prompt', kind: 'text', element: promptInput, widthTarget: promptInput ? (promptInput.closest('.settings-block') || promptInput) : null },
+    ]);
     window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 
