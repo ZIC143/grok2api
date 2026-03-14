@@ -62,47 +62,10 @@
     }
   }
 
-  function setElementTitle(element, value) {
-    if (!element || !value) return;
-    element.title = String(value);
-  }
-
-  function setElementText(element, value) {
-    if (!element || !value) return;
-    element.textContent = String(value);
-  }
-
-  function ensureFieldDescription(element, text) {
-    if (!element || !text) return;
-    let desc = element.parentElement && element.parentElement.querySelector('.field-dynamic-desc');
-    if (!desc) {
-      desc = document.createElement('div');
-      desc.className = 'field-dynamic-desc';
-      desc.style.fontSize = '12px';
-      desc.style.opacity = '0.7';
-      desc.style.marginTop = '4px';
-      element.parentElement.appendChild(desc);
-    }
-    desc.textContent = String(text);
-  }
-
-  function updateFieldOrder(container, entries) {
-    if (!container || !Array.isArray(entries) || entries.length === 0) return;
-    const ranked = entries
-      .filter((entry) => entry && entry.element)
-      .sort((left, right) => (left.order || 0) - (right.order || 0));
-    ranked.forEach((entry) => {
-      const target = entry.element.closest('.settings-block') || entry.element;
-      if (target && target.parentElement === container) {
-        container.appendChild(target);
-      }
-    });
-  }
-
   function applyChatFieldUi(fieldMap, fieldName, element) {
     const field = fieldMap.get(fieldName);
     if (!field || !field.ui || !element) return;
-    setElementTitle(element, field.ui.description || field.ui.label);
+    window.SchemaUI.setTitle(element, field.ui.description || field.ui.label);
     if ('placeholder' in element && field.ui.label && !element.placeholder) {
       element.placeholder = field.ui.label;
     }
@@ -115,8 +78,8 @@
       if (temperatureField.max !== undefined) tempRange.max = String(temperatureField.max);
       if (temperatureField.step !== undefined) tempRange.step = String(temperatureField.step);
       if (tempLabel && temperatureField.ui) {
-        setElementText(tempLabel, temperatureField.ui.label || tempLabel.textContent);
-        ensureFieldDescription(tempLabel, temperatureField.ui.description);
+        window.SchemaUI.setText(tempLabel, temperatureField.ui.label || tempLabel.textContent);
+        window.SchemaUI.ensureFieldDescription(tempLabel, temperatureField.ui.description);
       }
     }
 
@@ -126,20 +89,20 @@
       if (topPField.max !== undefined) topPRange.max = String(topPField.max);
       if (topPField.step !== undefined) topPRange.step = String(topPField.step);
       if (topPLabel && topPField.ui) {
-        setElementText(topPLabel, topPField.ui.label || topPLabel.textContent);
-        ensureFieldDescription(topPLabel, topPField.ui.description);
+        window.SchemaUI.setText(topPLabel, topPField.ui.label || topPLabel.textContent);
+        window.SchemaUI.ensureFieldDescription(topPLabel, topPField.ui.description);
       }
     }
 
     const messagesField = fieldMap.get('messages');
     if (messagesField && messagesField.ui && systemLabel) {
-      ensureFieldDescription(systemLabel, messagesField.ui.description);
+      window.SchemaUI.ensureFieldDescription(systemLabel, messagesField.ui.description);
     }
 
     const reasoningField = fieldMap.get('reasoning_effort');
     if (reasoningField && settingsToggle && reasoningField.ui) {
       settingsToggle.dataset.dynamicLabel = reasoningField.ui.label || '';
-      setElementTitle(settingsToggle, reasoningField.ui.description || reasoningField.ui.label);
+      window.SchemaUI.setTitle(settingsToggle, reasoningField.ui.description || reasoningField.ui.label);
     }
 
     const systemField = fieldMap.get('messages');
@@ -222,7 +185,7 @@
       const temperatureField = fieldMap.get('temperature');
       const topPField = fieldMap.get('top_p');
       const messagesField = fieldMap.get('messages');
-      updateFieldOrder(settingsGrid, [
+      window.SchemaUI.updateFieldOrder(settingsGrid, [
         { element: tempRange, order: temperatureField && temperatureField.ui ? temperatureField.ui.order : 0 },
         { element: topPRange, order: topPField && topPField.ui ? topPField.ui.order : 0 },
         { element: systemInput, order: messagesField && messagesField.ui ? messagesField.ui.order : 0 },

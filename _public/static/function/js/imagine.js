@@ -61,69 +61,6 @@
     }
   }
 
-  function setElementTitle(element, value) {
-    if (!element || !value) return;
-    element.title = String(value);
-  }
-
-  function setElementText(element, value) {
-    if (!element || !value) return;
-    element.textContent = String(value);
-  }
-
-  function ensureFieldDescription(element, text) {
-    if (!element || !text) return;
-    let desc = element.parentElement && element.parentElement.querySelector('.field-dynamic-desc');
-    if (!desc) {
-      desc = document.createElement('div');
-      desc.className = 'field-dynamic-desc';
-      desc.style.fontSize = '12px';
-      desc.style.opacity = '0.7';
-      desc.style.marginTop = '4px';
-      element.parentElement.appendChild(desc);
-    }
-    desc.textContent = String(text);
-  }
-
-  function updateFieldOrder(container, entries) {
-    if (!container || !Array.isArray(entries) || entries.length === 0) return;
-    const ranked = entries
-      .filter((entry) => entry && entry.element)
-      .sort((left, right) => (left.order || 0) - (right.order || 0));
-    ranked.forEach((entry) => {
-      const target = entry.element.closest('.settings-field') || entry.element.closest('.settings-block') || entry.element;
-      if (target && target.parentElement === container) {
-        container.appendChild(target);
-      }
-    });
-  }
-
-  function applySelectFieldSchema(select, field, formatter) {
-    if (!select || !field) return;
-    if (Array.isArray(field.options) && field.options.length > 0) {
-      setSelectOptions(select, field.options, field.default, formatter);
-    }
-    if (field.required === false) {
-      select.dataset.optional = 'true';
-    }
-  }
-
-  function setSelectOptions(select, options, preferred) {
-    if (!select || !Array.isArray(options) || options.length === 0) return;
-    const current = preferred && options.includes(preferred) ? preferred : (options.includes(select.value) ? select.value : options[0]);
-    select.innerHTML = '';
-    options.forEach((optionValue) => {
-      const option = document.createElement('option');
-      option.value = String(optionValue);
-      option.textContent = String(optionValue);
-      if (String(optionValue) === String(current)) {
-        option.selected = true;
-      }
-      select.appendChild(option);
-    });
-    select.value = String(current);
-  }
-
   function applyImagineManifest(manifest) {
     const scene = manifest && manifest.scenes && manifest.scenes.imagine;
     if (!scene) return;
@@ -142,40 +79,40 @@
     const nsfwField = fieldMap.get('nsfw');
     const promptField = fieldMap.get('prompt');
 
-    setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '2:3');
+    window.SchemaUI.setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '2:3');
     if (nsfwSelect && typeof defaults.nsfw === 'boolean') {
       nsfwSelect.value = defaults.nsfw ? 'true' : 'false';
     }
 
     const concurrentField = fieldMap.get('concurrent');
     if (concurrentSelect && concurrentField && Array.isArray(concurrentField.options)) {
-      setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
+      window.SchemaUI.setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
     }
-    applySelectFieldSchema(ratioSelect, ratioField, (value) => String(value));
-    applySelectFieldSchema(nsfwSelect, nsfwField, (value) => String(value) === 'true' ? 'true' : 'false');
+    window.SchemaUI.applySelectField(ratioSelect, ratioField, (value) => String(value));
+    window.SchemaUI.applySelectField(nsfwSelect, nsfwField, (value) => String(value) === 'true' ? 'true' : 'false');
 
     if (promptInput) {
       promptInput.placeholder = (promptField && promptField.ui && promptField.ui.label) || promptInput.placeholder;
-      setElementTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
+      window.SchemaUI.setTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
       if (promptField && promptField.min_length !== undefined) {
         promptInput.minLength = Number(promptField.min_length) || 0;
       }
     }
-    setElementTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
-    setElementTitle(nsfwSelect, nsfwField && nsfwField.ui && nsfwField.ui.description);
-    setElementTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
-    setElementTitle(statusText, scene.ui && scene.ui.description);
+    window.SchemaUI.setTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
+    window.SchemaUI.setTitle(nsfwSelect, nsfwField && nsfwField.ui && nsfwField.ui.description);
+    window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
+    window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
 
     if (ratioLabel && ratioField && ratioField.ui) {
-      setElementText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
-      ensureFieldDescription(ratioLabel, ratioField.ui.description);
+      window.SchemaUI.setText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(ratioLabel, ratioField.ui.description);
     }
     if (concurrentLabel) {
-      ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
+      window.SchemaUI.ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
     }
     if (nsfwLabel && nsfwField && nsfwField.ui) {
-      setElementText(nsfwLabel, nsfwField.ui.label || nsfwLabel.textContent);
-      ensureFieldDescription(nsfwLabel, nsfwField.ui.description);
+      window.SchemaUI.setText(nsfwLabel, nsfwField.ui.label || nsfwLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(nsfwLabel, nsfwField.ui.description);
     }
 
     if (startBtn && scene.ui && scene.ui.submit_label) {
@@ -184,13 +121,13 @@
     }
 
     if (promptField && promptField.ui && promptInput) {
-      ensureFieldDescription(promptInput, promptField.ui.description);
+      window.SchemaUI.ensureFieldDescription(promptInput, promptField.ui.description);
     }
 
     if (settingsContent) {
       const settingsGrid = settingsContent.querySelector('.settings-grid');
       if (settingsGrid) {
-        updateFieldOrder(settingsGrid, [
+        window.SchemaUI.updateFieldOrder(settingsGrid, [
           { element: promptInput, order: promptField && promptField.ui ? promptField.ui.order : 0 },
           { element: ratioSelect, order: ratioField && ratioField.ui ? ratioField.ui.order : 0 },
           { element: concurrentSelect, order: concurrentField && concurrentField.ui ? concurrentField.ui.order : 0 },

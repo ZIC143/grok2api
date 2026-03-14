@@ -58,69 +58,6 @@
     }
   }
 
-  function setElementTitle(element, value) {
-    if (!element || !value) return;
-    element.title = String(value);
-  }
-
-  function setElementText(element, value) {
-    if (!element || !value) return;
-    element.textContent = String(value);
-  }
-
-  function ensureFieldDescription(element, text) {
-    if (!element || !text) return;
-    let desc = element.parentElement && element.parentElement.querySelector('.field-dynamic-desc');
-    if (!desc) {
-      desc = document.createElement('div');
-      desc.className = 'field-dynamic-desc';
-      desc.style.fontSize = '12px';
-      desc.style.opacity = '0.7';
-      desc.style.marginTop = '4px';
-      element.parentElement.appendChild(desc);
-    }
-    desc.textContent = String(text);
-  }
-
-  function updateFieldOrder(container, entries) {
-    if (!container || !Array.isArray(entries) || entries.length === 0) return;
-    const ranked = entries
-      .filter((entry) => entry && entry.element)
-      .sort((left, right) => (left.order || 0) - (right.order || 0));
-    ranked.forEach((entry) => {
-      const target = entry.element.closest('.settings-block') || entry.element;
-      if (target && target.parentElement === container) {
-        container.appendChild(target);
-      }
-    });
-  }
-
-  function applySelectFieldSchema(select, field, formatter) {
-    if (!select || !field) return;
-    if (Array.isArray(field.options) && field.options.length > 0) {
-      setSelectOptions(select, field.options, field.default, formatter);
-    }
-  }
-
-  function setSelectOptions(select, options, preferred, formatter) {
-    if (!select || !Array.isArray(options) || options.length === 0) return;
-    const current = preferred && options.map(String).includes(String(preferred))
-      ? String(preferred)
-      : (options.map(String).includes(String(select.value)) ? String(select.value) : String(options[0]));
-    select.innerHTML = '';
-    options.forEach((optionValue) => {
-      const normalized = String(optionValue);
-      const option = document.createElement('option');
-      option.value = normalized;
-      option.textContent = typeof formatter === 'function' ? formatter(optionValue) : normalized;
-      if (normalized === current) {
-        option.selected = true;
-      }
-      select.appendChild(option);
-    });
-    select.value = current;
-  }
-
   function applyVideoManifest(manifest) {
     const scene = manifest && manifest.scenes && manifest.scenes.video;
     if (!scene) return;
@@ -140,14 +77,14 @@
     const promptField = fieldMap.get('prompt');
 
     defaultReasoningEffort = String(defaults.reasoning_effort || defaultReasoningEffort);
-    setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '3:2');
-    setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
-    setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
-    setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
-    applySelectFieldSchema(ratioSelect, ratioField, (value) => String(value));
-    applySelectFieldSchema(lengthSelect, lengthField, (value) => `${value}s`);
-    applySelectFieldSchema(resolutionSelect, resolutionField, (value) => String(value));
-    applySelectFieldSchema(presetSelect, presetField, (value) => String(value));
+    window.SchemaUI.setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '3:2');
+    window.SchemaUI.setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
+    window.SchemaUI.setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
+    window.SchemaUI.setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
+    window.SchemaUI.applySelectField(ratioSelect, ratioField, (value) => String(value));
+    window.SchemaUI.applySelectField(lengthSelect, lengthField, (value) => `${value}s`);
+    window.SchemaUI.applySelectField(resolutionSelect, resolutionField, (value) => String(value));
+    window.SchemaUI.applySelectField(presetSelect, presetField, (value) => String(value));
 
     if (lengthField && typeof lengthField.min === 'number') {
       lengthSelect.min = String(lengthField.min);
@@ -161,46 +98,46 @@
 
     if (promptInput) {
       promptInput.placeholder = (promptField && promptField.ui && promptField.ui.label) || promptInput.placeholder;
-      setElementTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
+      window.SchemaUI.setTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
       if (promptField && promptField.min_length !== undefined) {
         promptInput.minLength = Number(promptField.min_length) || 0;
       }
     }
-    setElementTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
-    setElementTitle(lengthSelect, lengthField && lengthField.ui && lengthField.ui.description);
-    setElementTitle(resolutionSelect, resolutionField && resolutionField.ui && resolutionField.ui.description);
-    setElementTitle(presetSelect, presetField && presetField.ui && presetField.ui.description);
-    setElementTitle(imageUrlInput, imageField && imageField.ui && imageField.ui.description);
-    setElementTitle(statusText, ui.description);
+    window.SchemaUI.setTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
+    window.SchemaUI.setTitle(lengthSelect, lengthField && lengthField.ui && lengthField.ui.description);
+    window.SchemaUI.setTitle(resolutionSelect, resolutionField && resolutionField.ui && resolutionField.ui.description);
+    window.SchemaUI.setTitle(presetSelect, presetField && presetField.ui && presetField.ui.description);
+    window.SchemaUI.setTitle(imageUrlInput, imageField && imageField.ui && imageField.ui.description);
+    window.SchemaUI.setTitle(statusText, ui.description);
 
     if (ratioLabel && ratioField && ratioField.ui) {
-      setElementText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
-      ensureFieldDescription(ratioLabel, ratioField.ui.description);
+      window.SchemaUI.setText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(ratioLabel, ratioField.ui.description);
     }
     if (lengthLabel && lengthField && lengthField.ui) {
-      setElementText(lengthLabel, lengthField.ui.label || lengthLabel.textContent);
-      ensureFieldDescription(lengthLabel, lengthField.ui.description);
+      window.SchemaUI.setText(lengthLabel, lengthField.ui.label || lengthLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(lengthLabel, lengthField.ui.description);
     }
     if (resolutionLabel && resolutionField && resolutionField.ui) {
-      setElementText(resolutionLabel, resolutionField.ui.label || resolutionLabel.textContent);
-      ensureFieldDescription(resolutionLabel, resolutionField.ui.description);
+      window.SchemaUI.setText(resolutionLabel, resolutionField.ui.label || resolutionLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(resolutionLabel, resolutionField.ui.description);
     }
     if (presetLabel && presetField && presetField.ui) {
-      setElementText(presetLabel, presetField.ui.label || presetLabel.textContent);
-      ensureFieldDescription(presetLabel, presetField.ui.description);
+      window.SchemaUI.setText(presetLabel, presetField.ui.label || presetLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(presetLabel, presetField.ui.description);
     }
     if (imageUrlLabel && imageField && imageField.ui) {
-      setElementText(imageUrlLabel, imageField.ui.label || imageUrlLabel.textContent);
-      ensureFieldDescription(imageUrlLabel, imageField.ui.description);
+      window.SchemaUI.setText(imageUrlLabel, imageField.ui.label || imageUrlLabel.textContent);
+      window.SchemaUI.ensureFieldDescription(imageUrlLabel, imageField.ui.description);
     }
     if (promptInput) {
       if (promptField && promptField.ui) {
-        ensureFieldDescription(promptInput, promptField.ui.description);
+        window.SchemaUI.ensureFieldDescription(promptInput, promptField.ui.description);
       }
     }
 
     if (settingsGrid) {
-      updateFieldOrder(settingsGrid, [
+      window.SchemaUI.updateFieldOrder(settingsGrid, [
         { element: promptInput, order: promptField && promptField.ui ? promptField.ui.order : 0 },
         { element: imageUrlInput, order: imageField && imageField.ui ? imageField.ui.order : 0 },
         { element: ratioSelect, order: ratioField && ratioField.ui ? ratioField.ui.order : 0 },
