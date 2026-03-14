@@ -67,7 +67,7 @@
         kind: 'text',
         element: systemInput,
         labelElement: systemLabel,
-        widthTarget: systemInput ? (systemInput.closest('.settings-block') || systemInput) : null,
+        widthTarget: window.SceneAssembly.resolveFieldContainer(systemInput),
         when: (field) => !!(field && field.ui && systemLabel),
       },
     ]);
@@ -151,26 +151,24 @@
     if (promptInput && ui.title) {
       promptInput.placeholder = ui.title;
     }
-    window.SceneAssembly.applyScenePresentation(parts, {
+    window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
         statusElement: statusText,
         titleElement: chatTitle,
         submitButton: sendBtn,
         layoutElement: settingsPanel,
       },
-      sections: {
-        orderContainer: settingsGrid,
-        orderEntries: [
-          { element: tempRange, fieldName: 'temperature' },
-          { element: topPRange, fieldName: 'top_p' },
-          { element: systemInput, fieldName: 'messages' },
-        ],
-        layoutContainer: settingsGrid,
-        sectionElements: {
-          basic: tempRange ? tempRange.closest('.settings-block') : null,
-          content: systemInput ? systemInput.closest('.settings-block') : null,
-          advanced: topPRange ? topPRange.closest('.settings-block') : null,
-        },
+      orderContainer: settingsGrid,
+      orderFields: [
+        { element: tempRange, fieldName: 'temperature' },
+        { element: topPRange, fieldName: 'top_p' },
+        { element: systemInput, fieldName: 'messages' },
+      ],
+      layoutContainer: settingsGrid,
+      sectionElements: {
+        basic: window.SceneAssembly.resolveFieldContainer(tempRange),
+        content: window.SceneAssembly.resolveFieldContainer(systemInput),
+        advanced: window.SceneAssembly.resolveFieldContainer(topPRange),
       },
     });
     if (chatTitle && ui.title) {

@@ -81,13 +81,13 @@
         kind: 'text',
         element: imageUrlInput,
         labelElement: imageUrlLabel,
-        widthTarget: imageUrlInput ? (imageUrlInput.closest('.settings-block') || imageUrlInput) : null,
+        widthTarget: window.SceneAssembly.resolveFieldContainer(imageUrlInput),
       },
       {
         fieldName: 'prompt',
         kind: 'text',
         element: promptInput,
-        widthTarget: promptInput ? (promptInput.closest('.settings-block') || promptInput) : null,
+        widthTarget: window.SceneAssembly.resolveFieldContainer(promptInput),
       },
     ]);
 
@@ -102,30 +102,28 @@
     }
     window.SchemaUI.setTitle(statusText, ui.description);
 
-    window.SceneAssembly.applyScenePresentation(parts, {
+    window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
         statusElement: statusText,
         titleElement: videoTitle,
         submitButton: startBtn,
         visibilityTarget: startBtn,
       },
-      sections: {
-        orderContainer: settingsGrid,
-        orderEntries: [
-          { element: promptInput, fieldName: 'prompt' },
-          { element: imageUrlInput, fieldName: 'image_url' },
-          { element: ratioSelect, fieldName: 'aspect_ratio' },
-          { element: lengthSelect, fieldName: 'video_length' },
-          { element: resolutionSelect, fieldName: 'resolution_name' },
-          { element: presetSelect, fieldName: 'preset' },
-        ],
-        layoutContainer: settingsGrid,
-        sectionElements: {
-          content: promptInput ? promptInput.closest('.settings-block') : null,
-          basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
-          quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
-          advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
-        },
+      orderContainer: settingsGrid,
+      orderFields: [
+        { element: promptInput, fieldName: 'prompt' },
+        { element: imageUrlInput, fieldName: 'image_url' },
+        { element: ratioSelect, fieldName: 'aspect_ratio' },
+        { element: lengthSelect, fieldName: 'video_length' },
+        { element: resolutionSelect, fieldName: 'resolution_name' },
+        { element: presetSelect, fieldName: 'preset' },
+      ],
+      layoutContainer: settingsGrid,
+      sectionElements: {
+        content: window.SceneAssembly.resolveFieldContainer(promptInput),
+        basic: window.SceneAssembly.resolveFieldContainer(ratioSelect),
+        quality: window.SceneAssembly.resolveFieldContainer(resolutionSelect),
+        advanced: window.SceneAssembly.resolveFieldContainer(presetSelect),
       },
     });
     updateMeta();

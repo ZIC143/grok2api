@@ -8,6 +8,11 @@ function createFieldMap(scene) {
   return new Map(fields.map((field) => [field.name, field]));
 }
 
+function resolveFieldContainer(element) {
+  if (!element) return null;
+  return element.closest('.settings-block') || element.closest('.settings-field') || element;
+}
+
 function getSceneParts(manifest, sceneName) {
   const scene = getSceneFromManifest(manifest, sceneName);
   if (!scene) {
@@ -161,6 +166,28 @@ function applyScenePresentation(parts, options = {}) {
   applySceneSections(parts, options.sections || {});
 }
 
+function applyScenePresentationPlan(parts, plan = {}) {
+  if (!parts) return;
+  const orderEntries = Array.isArray(plan.orderFields)
+    ? plan.orderFields.map((entry) => ({
+        element: entry && entry.element,
+        fieldName: entry && entry.fieldName,
+        order: entry && entry.order,
+        closestSelector: entry && entry.closestSelector,
+      }))
+    : [];
+
+  applyScenePresentation(parts, {
+    meta: plan.meta || {},
+    sections: {
+      orderContainer: plan.orderContainer,
+      orderEntries,
+      layoutContainer: plan.layoutContainer,
+      sectionElements: plan.sectionElements || {},
+    },
+  });
+}
+
 function getBootstrapModelConfig(parts) {
   if (!parts || !parts.bootstrap || !parts.bootstrap.models) {
     return { available: [], preferred: '' };
@@ -183,12 +210,14 @@ window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
   getSceneParts,
+  resolveFieldContainer,
   applySceneMeta,
   applySceneSections,
   applySceneFields,
   applyFieldRenderPlan,
   applyBootstrapDefaults,
   applyScenePresentation,
+  applyScenePresentationPlan,
   getBootstrapModelConfig,
   getBootstrapNumber,
 };

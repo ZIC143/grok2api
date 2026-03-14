@@ -82,7 +82,7 @@
       { fieldName: 'aspect_ratio', kind: 'select', element: ratioSelect, labelElement: ratioLabel, formatter: (value) => String(value) },
       { fieldName: 'nsfw', kind: 'select', element: nsfwSelect, labelElement: nsfwLabel, formatter: (value) => String(value) === 'true' ? 'true' : 'false' },
       { fieldName: 'concurrent', kind: 'select', element: concurrentSelect, labelElement: concurrentLabel, formatter: (value) => `${value}` },
-      { fieldName: 'prompt', kind: 'text', element: promptInput, widthTarget: promptInput ? (promptInput.closest('.settings-block') || promptInput) : null },
+      { fieldName: 'prompt', kind: 'text', element: promptInput, widthTarget: window.SceneAssembly.resolveFieldContainer(promptInput) },
     ]);
     window.SchemaUI.setTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     window.SchemaUI.setTitle(statusText, scene.ui && scene.ui.description);
@@ -92,26 +92,24 @@
     }
 
     const imagineSettingsGrid = settingsContent ? settingsContent.querySelector('.settings-grid') : null;
-    window.SceneAssembly.applyScenePresentation(parts, {
+    window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
         statusElement: statusText,
         titleElement: imagineTitle,
         submitButton: startBtn,
         visibilityTarget: startBtn,
       },
-      sections: {
-        orderContainer: imagineSettingsGrid,
-        orderEntries: [
-          { element: promptInput, fieldName: 'prompt' },
-          { element: ratioSelect, fieldName: 'aspect_ratio' },
-          { element: concurrentSelect, fieldName: 'concurrent' },
-          { element: nsfwSelect, fieldName: 'nsfw' },
-        ],
-        layoutContainer: settingsContent,
-        sectionElements: {
-          content: promptInput ? promptInput.closest('.settings-block') : null,
-          basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
-        },
+      orderContainer: imagineSettingsGrid,
+      orderFields: [
+        { element: promptInput, fieldName: 'prompt' },
+        { element: ratioSelect, fieldName: 'aspect_ratio' },
+        { element: concurrentSelect, fieldName: 'concurrent' },
+        { element: nsfwSelect, fieldName: 'nsfw' },
+      ],
+      layoutContainer: settingsContent,
+      sectionElements: {
+        content: window.SceneAssembly.resolveFieldContainer(promptInput),
+        basic: window.SceneAssembly.resolveFieldContainer(ratioSelect),
       },
     });
   }
