@@ -156,6 +156,54 @@ jobs:
           echo "Checking ${worker_url}"
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$worker_url"
 
+      - name: Ready check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          ready_url="${worker_url}/ready"
+          echo "Checking ${ready_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$ready_url"
+
+      - name: Metadata check
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_url=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['CF_DEPLOY_META'])
+          data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+          print(data.get('worker_url', '').rstrip('/'))
+          PY
+          )
+          if [ -z "$worker_url" ]; then
+            echo "Unable to determine deployed workers.dev URL from deploy output" >&2
+            echo "Deploy log:" >&2
+            cat "${CF_DEPLOY_LOG}" >&2
+            exit 1
+          fi
+          meta_url="${worker_url}/meta"
+          echo "Checking ${meta_url}"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$meta_url"
+
       - name: Post deploy summary
         shell: bash
         run: |
