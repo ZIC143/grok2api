@@ -942,7 +942,9 @@
     });
   }
 
-  loadFilterDefaults();
+  window.AdminAuth.initializeFunctionPage({
+    onAuthorized: loadFilterDefaults,
+  });
 
   if (ratioSelect) {
     ratioSelect.addEventListener('change', () => {
