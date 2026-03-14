@@ -31,6 +31,7 @@
   const tempLabel = document.querySelector('label[for="tempRange"]');
   const topPLabel = document.querySelector('label[for="topPRange"]');
   const systemLabel = document.querySelector('label[for="systemInput"]');
+  const settingsGrid = settingsPanel ? settingsPanel.querySelector('.settings-grid') : null;
 
   const STORAGE_KEY = 'grok2api_chat_sessions';
   const SIDEBAR_STATE_KEY = 'grok2api_chat_sidebar_collapsed';
@@ -85,6 +86,19 @@
     desc.textContent = String(text);
   }
 
+  function updateFieldOrder(container, entries) {
+    if (!container || !Array.isArray(entries) || entries.length === 0) return;
+    const ranked = entries
+      .filter((entry) => entry && entry.element)
+      .sort((left, right) => (left.order || 0) - (right.order || 0));
+    ranked.forEach((entry) => {
+      const target = entry.element.closest('.settings-block') || entry.element;
+      if (target && target.parentElement === container) {
+        container.appendChild(target);
+      }
+    });
+  }
+
   function applyChatFieldUi(fieldMap, fieldName, element) {
     const field = fieldMap.get(fieldName);
     if (!field || !field.ui || !element) return;
@@ -126,6 +140,11 @@
     if (reasoningField && settingsToggle && reasoningField.ui) {
       settingsToggle.dataset.dynamicLabel = reasoningField.ui.label || '';
       setElementTitle(settingsToggle, reasoningField.ui.description || reasoningField.ui.label);
+    }
+
+    const systemField = fieldMap.get('messages');
+    if (systemField && systemInput && systemField.min_items !== undefined) {
+      systemInput.dataset.schemaSource = 'messages';
     }
   }
 
@@ -198,6 +217,16 @@
     }
     if (settingsPanel && schema.ui && schema.ui.title) {
       settingsPanel.dataset.dynamicTitle = schema.ui.title;
+    }
+    if (settingsGrid) {
+      const temperatureField = fieldMap.get('temperature');
+      const topPField = fieldMap.get('top_p');
+      const messagesField = fieldMap.get('messages');
+      updateFieldOrder(settingsGrid, [
+        { element: tempRange, order: temperatureField && temperatureField.ui ? temperatureField.ui.order : 0 },
+        { element: topPRange, order: topPField && topPField.ui ? topPField.ui.order : 0 },
+        { element: systemInput, order: messagesField && messagesField.ui ? messagesField.ui.order : 0 },
+      ]);
     }
   }
 

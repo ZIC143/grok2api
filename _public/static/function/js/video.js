@@ -29,6 +29,7 @@
   const resolutionLabel = document.querySelector('label[for="resolutionSelect"]');
   const presetLabel = document.querySelector('label[for="presetSelect"]');
   const imageUrlLabel = document.querySelector('label[for="imageUrlInput"]');
+  const settingsGrid = document.querySelector('.video-card .settings-grid');
 
   let currentSource = null;
   let currentTaskId = '';
@@ -81,6 +82,26 @@
     desc.textContent = String(text);
   }
 
+  function updateFieldOrder(container, entries) {
+    if (!container || !Array.isArray(entries) || entries.length === 0) return;
+    const ranked = entries
+      .filter((entry) => entry && entry.element)
+      .sort((left, right) => (left.order || 0) - (right.order || 0));
+    ranked.forEach((entry) => {
+      const target = entry.element.closest('.settings-block') || entry.element;
+      if (target && target.parentElement === container) {
+        container.appendChild(target);
+      }
+    });
+  }
+
+  function applySelectFieldSchema(select, field, formatter) {
+    if (!select || !field) return;
+    if (Array.isArray(field.options) && field.options.length > 0) {
+      setSelectOptions(select, field.options, field.default, formatter);
+    }
+  }
+
   function setSelectOptions(select, options, preferred, formatter) {
     if (!select || !Array.isArray(options) || options.length === 0) return;
     const current = preferred && options.map(String).includes(String(preferred))
@@ -111,49 +132,82 @@
 
     const defaults = bootstrap.defaults || {};
     const options = bootstrap.options || {};
+    const ratioField = fieldMap.get('aspect_ratio');
+    const lengthField = fieldMap.get('video_length');
+    const resolutionField = fieldMap.get('resolution_name');
+    const presetField = fieldMap.get('preset');
+    const imageField = fieldMap.get('image_url');
+    const promptField = fieldMap.get('prompt');
 
     defaultReasoningEffort = String(defaults.reasoning_effort || defaultReasoningEffort);
     setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '3:2');
     setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
     setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
     setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
+    applySelectFieldSchema(ratioSelect, ratioField, (value) => String(value));
+    applySelectFieldSchema(lengthSelect, lengthField, (value) => `${value}s`);
+    applySelectFieldSchema(resolutionSelect, resolutionField, (value) => String(value));
+    applySelectFieldSchema(presetSelect, presetField, (value) => String(value));
+
+    if (lengthField && typeof lengthField.min === 'number') {
+      lengthSelect.min = String(lengthField.min);
+    }
+    if (lengthField && typeof lengthField.max === 'number') {
+      lengthSelect.max = String(lengthField.max);
+    }
+    if (imageField && imageField.format === 'url-or-data-uri' && imageUrlInput) {
+      imageUrlInput.pattern = '^(https?://.+|data:.+)$';
+    }
 
     if (promptInput) {
-      promptInput.placeholder = (fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.label) || promptInput.placeholder;
-      setElementTitle(promptInput, fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.description);
+      promptInput.placeholder = (promptField && promptField.ui && promptField.ui.label) || promptInput.placeholder;
+      setElementTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
+      if (promptField && promptField.min_length !== undefined) {
+        promptInput.minLength = Number(promptField.min_length) || 0;
+      }
     }
-    setElementTitle(ratioSelect, fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui && fieldMap.get('aspect_ratio').ui.description);
-    setElementTitle(lengthSelect, fieldMap.get('video_length') && fieldMap.get('video_length').ui && fieldMap.get('video_length').ui.description);
-    setElementTitle(resolutionSelect, fieldMap.get('resolution_name') && fieldMap.get('resolution_name').ui && fieldMap.get('resolution_name').ui.description);
-    setElementTitle(presetSelect, fieldMap.get('preset') && fieldMap.get('preset').ui && fieldMap.get('preset').ui.description);
-    setElementTitle(imageUrlInput, fieldMap.get('image_url') && fieldMap.get('image_url').ui && fieldMap.get('image_url').ui.description);
+    setElementTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
+    setElementTitle(lengthSelect, lengthField && lengthField.ui && lengthField.ui.description);
+    setElementTitle(resolutionSelect, resolutionField && resolutionField.ui && resolutionField.ui.description);
+    setElementTitle(presetSelect, presetField && presetField.ui && presetField.ui.description);
+    setElementTitle(imageUrlInput, imageField && imageField.ui && imageField.ui.description);
     setElementTitle(statusText, ui.description);
 
-    if (ratioLabel && fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui) {
-      setElementText(ratioLabel, fieldMap.get('aspect_ratio').ui.label || ratioLabel.textContent);
-      ensureFieldDescription(ratioLabel, fieldMap.get('aspect_ratio').ui.description);
+    if (ratioLabel && ratioField && ratioField.ui) {
+      setElementText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
+      ensureFieldDescription(ratioLabel, ratioField.ui.description);
     }
-    if (lengthLabel && fieldMap.get('video_length') && fieldMap.get('video_length').ui) {
-      setElementText(lengthLabel, fieldMap.get('video_length').ui.label || lengthLabel.textContent);
-      ensureFieldDescription(lengthLabel, fieldMap.get('video_length').ui.description);
+    if (lengthLabel && lengthField && lengthField.ui) {
+      setElementText(lengthLabel, lengthField.ui.label || lengthLabel.textContent);
+      ensureFieldDescription(lengthLabel, lengthField.ui.description);
     }
-    if (resolutionLabel && fieldMap.get('resolution_name') && fieldMap.get('resolution_name').ui) {
-      setElementText(resolutionLabel, fieldMap.get('resolution_name').ui.label || resolutionLabel.textContent);
-      ensureFieldDescription(resolutionLabel, fieldMap.get('resolution_name').ui.description);
+    if (resolutionLabel && resolutionField && resolutionField.ui) {
+      setElementText(resolutionLabel, resolutionField.ui.label || resolutionLabel.textContent);
+      ensureFieldDescription(resolutionLabel, resolutionField.ui.description);
     }
-    if (presetLabel && fieldMap.get('preset') && fieldMap.get('preset').ui) {
-      setElementText(presetLabel, fieldMap.get('preset').ui.label || presetLabel.textContent);
-      ensureFieldDescription(presetLabel, fieldMap.get('preset').ui.description);
+    if (presetLabel && presetField && presetField.ui) {
+      setElementText(presetLabel, presetField.ui.label || presetLabel.textContent);
+      ensureFieldDescription(presetLabel, presetField.ui.description);
     }
-    if (imageUrlLabel && fieldMap.get('image_url') && fieldMap.get('image_url').ui) {
-      setElementText(imageUrlLabel, fieldMap.get('image_url').ui.label || imageUrlLabel.textContent);
-      ensureFieldDescription(imageUrlLabel, fieldMap.get('image_url').ui.description);
+    if (imageUrlLabel && imageField && imageField.ui) {
+      setElementText(imageUrlLabel, imageField.ui.label || imageUrlLabel.textContent);
+      ensureFieldDescription(imageUrlLabel, imageField.ui.description);
     }
     if (promptInput) {
-      const promptField = fieldMap.get('prompt');
       if (promptField && promptField.ui) {
         ensureFieldDescription(promptInput, promptField.ui.description);
       }
+    }
+
+    if (settingsGrid) {
+      updateFieldOrder(settingsGrid, [
+        { element: promptInput, order: promptField && promptField.ui ? promptField.ui.order : 0 },
+        { element: imageUrlInput, order: imageField && imageField.ui ? imageField.ui.order : 0 },
+        { element: ratioSelect, order: ratioField && ratioField.ui ? ratioField.ui.order : 0 },
+        { element: lengthSelect, order: lengthField && lengthField.ui ? lengthField.ui.order : 0 },
+        { element: resolutionSelect, order: resolutionField && resolutionField.ui ? resolutionField.ui.order : 0 },
+        { element: presetSelect, order: presetField && presetField.ui ? presetField.ui.order : 0 },
+      ]);
     }
 
     if (startBtn && ui.submit_label) {

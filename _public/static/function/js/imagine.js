@@ -25,6 +25,7 @@
   const ratioLabel = document.querySelector('label[for="ratioSelect"]');
   const concurrentLabel = document.querySelector('label[for="concurrentSelect"]');
   const nsfwLabel = document.querySelector('label[for="nsfwSelect"]');
+  const settingsContent = document.getElementById('settingsContent');
 
   let wsConnections = [];
   let sseConnections = [];
@@ -84,6 +85,29 @@
     desc.textContent = String(text);
   }
 
+  function updateFieldOrder(container, entries) {
+    if (!container || !Array.isArray(entries) || entries.length === 0) return;
+    const ranked = entries
+      .filter((entry) => entry && entry.element)
+      .sort((left, right) => (left.order || 0) - (right.order || 0));
+    ranked.forEach((entry) => {
+      const target = entry.element.closest('.settings-field') || entry.element.closest('.settings-block') || entry.element;
+      if (target && target.parentElement === container) {
+        container.appendChild(target);
+      }
+    });
+  }
+
+  function applySelectFieldSchema(select, field, formatter) {
+    if (!select || !field) return;
+    if (Array.isArray(field.options) && field.options.length > 0) {
+      setSelectOptions(select, field.options, field.default, formatter);
+    }
+    if (field.required === false) {
+      select.dataset.optional = 'true';
+    }
+  }
+
   function setSelectOptions(select, options, preferred) {
     if (!select || !Array.isArray(options) || options.length === 0) return;
     const current = preferred && options.includes(preferred) ? preferred : (options.includes(select.value) ? select.value : options[0]);
@@ -114,6 +138,9 @@
 
     const defaults = bootstrap.defaults || {};
     const options = bootstrap.options || {};
+    const ratioField = fieldMap.get('aspect_ratio');
+    const nsfwField = fieldMap.get('nsfw');
+    const promptField = fieldMap.get('prompt');
 
     setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '2:3');
     if (nsfwSelect && typeof defaults.nsfw === 'boolean') {
@@ -124,26 +151,31 @@
     if (concurrentSelect && concurrentField && Array.isArray(concurrentField.options)) {
       setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
     }
+    applySelectFieldSchema(ratioSelect, ratioField, (value) => String(value));
+    applySelectFieldSchema(nsfwSelect, nsfwField, (value) => String(value) === 'true' ? 'true' : 'false');
 
     if (promptInput) {
-      promptInput.placeholder = (fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.label) || promptInput.placeholder;
-      setElementTitle(promptInput, fieldMap.get('prompt') && fieldMap.get('prompt').ui && fieldMap.get('prompt').ui.description);
+      promptInput.placeholder = (promptField && promptField.ui && promptField.ui.label) || promptInput.placeholder;
+      setElementTitle(promptInput, promptField && promptField.ui && promptField.ui.description);
+      if (promptField && promptField.min_length !== undefined) {
+        promptInput.minLength = Number(promptField.min_length) || 0;
+      }
     }
-    setElementTitle(ratioSelect, fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui && fieldMap.get('aspect_ratio').ui.description);
-    setElementTitle(nsfwSelect, fieldMap.get('nsfw') && fieldMap.get('nsfw').ui && fieldMap.get('nsfw').ui.description);
+    setElementTitle(ratioSelect, ratioField && ratioField.ui && ratioField.ui.description);
+    setElementTitle(nsfwSelect, nsfwField && nsfwField.ui && nsfwField.ui.description);
     setElementTitle(concurrentSelect, '并发数量目前仍由前端控件决定，后续可继续服务端化');
     setElementTitle(statusText, scene.ui && scene.ui.description);
 
-    if (ratioLabel && fieldMap.get('aspect_ratio') && fieldMap.get('aspect_ratio').ui) {
-      setElementText(ratioLabel, fieldMap.get('aspect_ratio').ui.label || ratioLabel.textContent);
-      ensureFieldDescription(ratioLabel, fieldMap.get('aspect_ratio').ui.description);
+    if (ratioLabel && ratioField && ratioField.ui) {
+      setElementText(ratioLabel, ratioField.ui.label || ratioLabel.textContent);
+      ensureFieldDescription(ratioLabel, ratioField.ui.description);
     }
     if (concurrentLabel) {
       ensureFieldDescription(concurrentLabel, '当前页面仍保留本地并发控件，后续可进一步由 manifest 驱动。');
     }
-    if (nsfwLabel && fieldMap.get('nsfw') && fieldMap.get('nsfw').ui) {
-      setElementText(nsfwLabel, fieldMap.get('nsfw').ui.label || nsfwLabel.textContent);
-      ensureFieldDescription(nsfwLabel, fieldMap.get('nsfw').ui.description);
+    if (nsfwLabel && nsfwField && nsfwField.ui) {
+      setElementText(nsfwLabel, nsfwField.ui.label || nsfwLabel.textContent);
+      ensureFieldDescription(nsfwLabel, nsfwField.ui.description);
     }
 
     if (startBtn && scene.ui && scene.ui.submit_label) {
@@ -151,9 +183,20 @@
       startBtn.title = scene.ui.submit_label;
     }
 
-    const promptField = fieldMap.get('prompt');
     if (promptField && promptField.ui && promptInput) {
       ensureFieldDescription(promptInput, promptField.ui.description);
+    }
+
+    if (settingsContent) {
+      const settingsGrid = settingsContent.querySelector('.settings-grid');
+      if (settingsGrid) {
+        updateFieldOrder(settingsGrid, [
+          { element: promptInput, order: promptField && promptField.ui ? promptField.ui.order : 0 },
+          { element: ratioSelect, order: ratioField && ratioField.ui ? ratioField.ui.order : 0 },
+          { element: concurrentSelect, order: concurrentField && concurrentField.ui ? concurrentField.ui.order : 0 },
+          { element: nsfwSelect, order: nsfwField && nsfwField.ui ? nsfwField.ui.order : 0 },
+        ]);
+      }
     }
   }
 
