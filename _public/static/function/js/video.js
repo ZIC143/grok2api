@@ -751,6 +751,9 @@
   }
 
   (async () => {
-    await window.FunctionManifestClient.apply(applyVideoManifest, updateMeta);
+    await window.FunctionManifestClient.initialize({
+      onManifest: applyVideoManifest,
+      onMissing: updateMeta,
+    });
   })();
 })();

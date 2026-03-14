@@ -180,12 +180,10 @@
   function updateModeValue() {}
 
   async function loadFilterDefaults() {
-    const manifest = await window.FunctionManifestClient.apply(applyImagineManifest);
-    if (manifest) return;
-    try {
-      const res = await fetch('/v1/function/imagine/config', { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = await res.json();
+    await window.FunctionManifestClient.initialize({
+      onManifest: applyImagineManifest,
+      fallbackEndpoint: '/v1/function/imagine/config',
+      onFallbackData: (data) => {
       const value = parseInt(data && data.final_min_bytes, 10);
       if (Number.isFinite(value) && value >= 0) {
         finalMinBytesDefault = value;
@@ -193,9 +191,8 @@
       if (nsfwSelect && typeof data.nsfw === 'boolean') {
         nsfwSelect.value = data.nsfw ? 'true' : 'false';
       }
-    } catch (e) {
-      // ignore
-    }
+      },
+    });
   }
 
 

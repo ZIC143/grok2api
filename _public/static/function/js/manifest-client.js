@@ -27,9 +27,41 @@ async function applyFunctionManifestShared(onManifest, onMissing) {
   return null;
 }
 
+async function initializeFunctionManifestShared(options = {}) {
+  const manifest = await loadFunctionManifestShared();
+  if (manifest) {
+    if (typeof options.onManifest === 'function') {
+      await options.onManifest(manifest);
+    }
+    return { manifest, fallbackData: null };
+  }
+
+  let fallbackData = null;
+  if (options.fallbackEndpoint) {
+    try {
+      const res = await fetch(options.fallbackEndpoint, { cache: 'no-store' });
+      if (res.ok) {
+        fallbackData = await res.json();
+        if (typeof options.onFallbackData === 'function') {
+          await options.onFallbackData(fallbackData);
+        }
+      }
+    } catch (e) {
+      fallbackData = null;
+    }
+  }
+
+  if (!fallbackData && typeof options.onMissing === 'function') {
+    await options.onMissing();
+  }
+
+  return { manifest: null, fallbackData };
+}
+
 window.FunctionManifestClient = {
   load: loadFunctionManifestShared,
   apply: applyFunctionManifestShared,
+  initialize: initializeFunctionManifestShared,
   clear() {
     functionManifestCache = null;
   },

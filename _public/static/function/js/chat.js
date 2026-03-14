@@ -1958,7 +1958,10 @@
       window.location.href = '/login';
       return;
     }
-    await window.FunctionManifestClient.apply(applyChatManifest, updateRangeValues);
+    await window.FunctionManifestClient.initialize({
+      onManifest: applyChatManifest,
+      onMissing: updateRangeValues,
+    });
     await loadModels();
     loadSessions();
   })();
