@@ -112,6 +112,7 @@ function getChatInitConfig(config) {
     status: 'ok',
     scene: 'chat',
     access: getFunctionAccessSummary(config),
+    bridge: getChatBridgeSummary(config),
     defaults: {
       model: defaultModel,
       temperature: 0.8,
@@ -221,6 +222,7 @@ function getTaskCapabilitySummary(config) {
         attachment_supported: true,
         streaming_supported: false,
         max_context_messages: 5,
+        bridge: getChatBridgeSummary(config),
       },
       imagine: {
         enabled: getFunctionAccessSummary(config).enabled,
@@ -322,6 +324,7 @@ function getChatFormSchema(config) {
     endpoint: '/v1/function/chat/completions',
     method: 'POST',
     submit_supported: true,
+    bridge: getChatBridgeSummary(config),
     examples: {
       minimal: {
         model: chatInit.defaults.model,
@@ -506,6 +509,7 @@ function getFunctionAssemblyManifest(config) {
     runtime: {
       worker_bridge_mode: 'frontend-assembly-manifest',
       submit_supported: true,
+      chat_bridge: getChatBridgeSummary(config),
     },
     endpoints: {
       bootstrap: '/v1/function/bootstrap',
@@ -788,6 +792,7 @@ async function handleFunctionChatCompletions(request, env) {
   const requestedStream = payload.stream !== undefined
     ? Boolean(payload.stream)
     : Boolean(auth.runtimeConfig.config.app?.stream);
+  const bridge = getChatBridgeSummary(auth.runtimeConfig.config);
 
   if (requestedStream) {
     return json(
@@ -804,6 +809,7 @@ async function handleFunctionChatCompletions(request, env) {
     status: 'accepted',
     scene: 'chat',
     bridge_mode: 'phase-i-non-stream-probe',
+    bridge,
     submit_supported: true,
     execution_supported: true,
     streaming_supported: false,
@@ -842,7 +848,17 @@ function buildDefaultConfig(env) {
   config.runtime.app_name = env.APP_NAME || 'grok2api';
   config.runtime.environment = env.APP_ENV || 'unknown';
   config.app.app_url = env.APP_URL || '';
+  config.runtime.chat_bridge_backend_url = env.CHAT_BRIDGE_BACKEND_URL || '';
   return config;
+}
+
+function getChatBridgeSummary(config) {
+  const backendUrl = String(config.runtime?.chat_bridge_backend_url || '').trim();
+  return {
+    configured: Boolean(backendUrl),
+    backend_url: backendUrl,
+    mode: backendUrl ? 'backend-forward-ready' : 'probe-only',
+  };
 }
 
 function pruneUnknownConfig(config, defaults) {
