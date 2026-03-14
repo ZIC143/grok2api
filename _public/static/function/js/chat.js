@@ -163,24 +163,26 @@
     if (promptInput && ui.title) {
       promptInput.placeholder = ui.title;
     }
-    window.SceneAssembly.applySceneMeta(parts, {
-      statusElement: statusText,
-      titleElement: chatTitle,
-      submitButton: sendBtn,
-      layoutElement: settingsPanel,
-    });
-    window.SceneAssembly.applySceneSections(parts, {
-      orderContainer: settingsGrid,
-      orderEntries: [
-        { element: tempRange, fieldName: 'temperature' },
-        { element: topPRange, fieldName: 'top_p' },
-        { element: systemInput, fieldName: 'messages' },
-      ],
-      layoutContainer: settingsGrid,
-      sectionElements: {
-        basic: tempRange ? tempRange.closest('.settings-block') : null,
-        content: systemInput ? systemInput.closest('.settings-block') : null,
-        advanced: topPRange ? topPRange.closest('.settings-block') : null,
+    window.SceneAssembly.applyScenePresentation(parts, {
+      meta: {
+        statusElement: statusText,
+        titleElement: chatTitle,
+        submitButton: sendBtn,
+        layoutElement: settingsPanel,
+      },
+      sections: {
+        orderContainer: settingsGrid,
+        orderEntries: [
+          { element: tempRange, fieldName: 'temperature' },
+          { element: topPRange, fieldName: 'top_p' },
+          { element: systemInput, fieldName: 'messages' },
+        ],
+        layoutContainer: settingsGrid,
+        sectionElements: {
+          basic: tempRange ? tempRange.closest('.settings-block') : null,
+          content: systemInput ? systemInput.closest('.settings-block') : null,
+          advanced: topPRange ? topPRange.closest('.settings-block') : null,
+        },
       },
     });
     if (chatTitle && ui.title) {

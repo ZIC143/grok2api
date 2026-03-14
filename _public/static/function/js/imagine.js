@@ -97,25 +97,27 @@
     }
 
     const imagineSettingsGrid = settingsContent ? settingsContent.querySelector('.settings-grid') : null;
-    window.SceneAssembly.applySceneSections(parts, {
-      orderContainer: imagineSettingsGrid,
-      orderEntries: [
-        { element: promptInput, fieldName: 'prompt' },
-        { element: ratioSelect, fieldName: 'aspect_ratio' },
-        { element: concurrentSelect, fieldName: 'concurrent' },
-        { element: nsfwSelect, fieldName: 'nsfw' },
-      ],
-      layoutContainer: settingsContent,
-      sectionElements: {
-        content: promptInput ? promptInput.closest('.settings-block') : null,
-        basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+    window.SceneAssembly.applyScenePresentation(parts, {
+      meta: {
+        statusElement: statusText,
+        titleElement: imagineTitle,
+        submitButton: startBtn,
+        visibilityTarget: startBtn,
       },
-    });
-    window.SceneAssembly.applySceneMeta(parts, {
-      statusElement: statusText,
-      titleElement: imagineTitle,
-      submitButton: startBtn,
-      visibilityTarget: startBtn,
+      sections: {
+        orderContainer: imagineSettingsGrid,
+        orderEntries: [
+          { element: promptInput, fieldName: 'prompt' },
+          { element: ratioSelect, fieldName: 'aspect_ratio' },
+          { element: concurrentSelect, fieldName: 'concurrent' },
+          { element: nsfwSelect, fieldName: 'nsfw' },
+        ],
+        layoutContainer: settingsContent,
+        sectionElements: {
+          content: promptInput ? promptInput.closest('.settings-block') : null,
+          basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+        },
+      },
     });
   }
 

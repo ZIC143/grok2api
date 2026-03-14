@@ -97,30 +97,31 @@
     }
     window.SchemaUI.setTitle(statusText, ui.description);
 
-    window.SceneAssembly.applySceneSections(parts, {
-      orderContainer: settingsGrid,
-      orderEntries: [
-        { element: promptInput, fieldName: 'prompt' },
-        { element: imageUrlInput, fieldName: 'image_url' },
-        { element: ratioSelect, fieldName: 'aspect_ratio' },
-        { element: lengthSelect, fieldName: 'video_length' },
-        { element: resolutionSelect, fieldName: 'resolution_name' },
-        { element: presetSelect, fieldName: 'preset' },
-      ],
-      layoutContainer: settingsGrid,
-      sectionElements: {
-        content: promptInput ? promptInput.closest('.settings-block') : null,
-        basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
-        quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
-        advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
+    window.SceneAssembly.applyScenePresentation(parts, {
+      meta: {
+        statusElement: statusText,
+        titleElement: videoTitle,
+        submitButton: startBtn,
+        visibilityTarget: startBtn,
       },
-    });
-
-    window.SceneAssembly.applySceneMeta(parts, {
-      statusElement: statusText,
-      titleElement: videoTitle,
-      submitButton: startBtn,
-      visibilityTarget: startBtn,
+      sections: {
+        orderContainer: settingsGrid,
+        orderEntries: [
+          { element: promptInput, fieldName: 'prompt' },
+          { element: imageUrlInput, fieldName: 'image_url' },
+          { element: ratioSelect, fieldName: 'aspect_ratio' },
+          { element: lengthSelect, fieldName: 'video_length' },
+          { element: resolutionSelect, fieldName: 'resolution_name' },
+          { element: presetSelect, fieldName: 'preset' },
+        ],
+        layoutContainer: settingsGrid,
+        sectionElements: {
+          content: promptInput ? promptInput.closest('.settings-block') : null,
+          basic: ratioSelect ? ratioSelect.closest('.settings-block') : null,
+          quality: resolutionSelect ? resolutionSelect.closest('.settings-block') : null,
+          advanced: presetSelect ? presetSelect.closest('.settings-block') : null,
+        },
+      },
     });
     updateMeta();
   }

@@ -117,6 +117,12 @@ function applyBootstrapDefaults(parts, options = {}) {
   }
 }
 
+function applyScenePresentation(parts, options = {}) {
+  if (!parts) return;
+  applySceneMeta(parts, options.meta || {});
+  applySceneSections(parts, options.sections || {});
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
@@ -125,4 +131,5 @@ window.SceneAssembly = {
   applySceneSections,
   applySceneFields,
   applyBootstrapDefaults,
+  applyScenePresentation,
 };
