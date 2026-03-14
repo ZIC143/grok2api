@@ -10,6 +10,150 @@ function json(data, init = {}) {
 
 const CONFIG_KEY = 'grok2api:config:runtime';
 
+const DEFAULT_RUNTIME_CONFIG = {
+  app: {
+    app_url: '',
+    app_key: 'grok2api',
+    api_key: '',
+    function_enabled: false,
+    function_key: '',
+    image_format: 'url',
+    video_format: 'html',
+    temporary: true,
+    disable_memory: true,
+    stream: true,
+    thinking: true,
+    dynamic_statsig: true,
+    custom_instruction: '',
+    filter_tags: ['xaiartifact', 'xai:tool_usage_card', 'grok:render'],
+  },
+  proxy: {
+    base_proxy_url: '',
+    asset_proxy_url: '',
+    cf_cookies: '',
+    skip_proxy_ssl_verify: false,
+    enabled: false,
+    flaresolverr_url: '',
+    refresh_interval: 3600,
+    timeout: 60,
+    cf_clearance: '',
+    browser: 'chrome136',
+    user_agent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+  },
+  retry: {
+    max_retry: 3,
+    retry_status_codes: [401, 429, 403],
+    reset_session_status_codes: [403],
+    retry_backoff_base: 0.5,
+    retry_backoff_factor: 2,
+    retry_backoff_max: 20,
+    retry_budget: 60,
+  },
+  token: {
+    auto_refresh: true,
+    refresh_interval_hours: 8,
+    super_refresh_interval_hours: 2,
+    fail_threshold: 5,
+    save_delay_ms: 500,
+    usage_flush_interval_sec: 5,
+    reload_interval_sec: 30,
+  },
+  cache: {
+    enable_auto_clean: true,
+    limit_mb: 512,
+  },
+  chat: {
+    concurrent: 50,
+    timeout: 60,
+    stream_timeout: 60,
+  },
+  image: {
+    timeout: 60,
+    stream_timeout: 60,
+    final_timeout: 15,
+    blocked_grace_seconds: 10,
+    nsfw: true,
+    medium_min_bytes: 30000,
+    final_min_bytes: 100000,
+    blocked_parallel_attempts: 5,
+    blocked_parallel_enabled: true,
+  },
+  imagine_fast: {
+    n: 1,
+    size: '1024x1024',
+    response_format: 'url',
+  },
+  video: {
+    concurrent: 100,
+    timeout: 60,
+    stream_timeout: 60,
+    upscale_timing: 'complete',
+  },
+  voice: {
+    timeout: 60,
+  },
+  asset: {
+    upload_concurrent: 100,
+    upload_timeout: 60,
+    download_concurrent: 100,
+    download_timeout: 60,
+    list_concurrent: 100,
+    list_timeout: 60,
+    list_batch_size: 50,
+    delete_concurrent: 100,
+    delete_timeout: 60,
+    delete_batch_size: 50,
+  },
+  nsfw: {
+    concurrent: 60,
+    batch_size: 30,
+    timeout: 60,
+  },
+  usage: {
+    concurrent: 100,
+    batch_size: 50,
+    timeout: 60,
+  },
+  runtime: {
+    app_name: 'grok2api',
+    environment: 'unknown',
+    runtime: 'cloudflare-workers',
+  },
+};
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function deepMerge(base, override) {
+  if (!isPlainObject(base) || !isPlainObject(override)) {
+    return deepClone(override);
+  }
+
+  const result = deepClone(base);
+  for (const [key, value] of Object.entries(override)) {
+    if (isPlainObject(value) && isPlainObject(result[key])) {
+      result[key] = deepMerge(result[key], value);
+    } else {
+      result[key] = deepClone(value);
+    }
+  }
+  return result;
+}
+
+function buildDefaultConfig(env) {
+  const config = deepClone(DEFAULT_RUNTIME_CONFIG);
+  config.runtime.app_name = env.APP_NAME || 'grok2api';
+  config.runtime.environment = env.APP_ENV || 'unknown';
+  config.app.app_url = env.APP_URL || '';
+  return config;
+}
+
 async function ensureD1Schema(env) {
   if (!(env.DB && typeof env.DB.prepare === 'function')) {
     return { ok: false, detail: 'binding-missing' };
@@ -69,29 +213,23 @@ async function getWorkerState(env, key) {
 }
 
 async function getRuntimeConfig(env) {
+  const defaultConfig = buildDefaultConfig(env);
+
   if (!(env.KV_CACHE && typeof env.KV_CACHE.get === 'function')) {
     return {
       source: 'default',
-      config: {
-        app_name: env.APP_NAME || 'grok2api',
-        environment: env.APP_ENV || 'unknown',
-        runtime: 'cloudflare-workers',
-      },
+      config: defaultConfig,
     };
   }
 
   const stored = await env.KV_CACHE.get(CONFIG_KEY, { type: 'json' });
   if (stored && typeof stored === 'object') {
-    return { source: 'kv', config: stored };
+    return { source: 'kv', config: deepMerge(defaultConfig, stored) };
   }
 
   return {
     source: 'default',
-    config: {
-      app_name: env.APP_NAME || 'grok2api',
-      environment: env.APP_ENV || 'unknown',
-      runtime: 'cloudflare-workers',
-    },
+    config: defaultConfig,
   };
 }
 
@@ -211,11 +349,29 @@ export default {
     }
 
     if (url.pathname === '/meta') {
+      const runtimeConfig = await getRuntimeConfig(env);
       return json({
         app: env.APP_NAME || 'grok2api',
         runtime: 'cloudflare-workers',
         environment: env.APP_ENV || 'unknown',
-        endpoints: ['/health', '/ready', '/meta', '/config', '/storage'],
+        endpoints: ['/health', '/ready', '/meta', '/config', '/storage', '/config/sections'],
+        sections: Object.keys(runtimeConfig.config),
+      });
+    }
+
+    if (url.pathname === '/config/sections' && request.method === 'GET') {
+      const runtimeConfig = await getRuntimeConfig(env);
+      return json({
+        status: 'ok',
+        sections: Object.fromEntries(
+          Object.entries(runtimeConfig.config).map(([section, value]) => [
+            section,
+            {
+              type: Array.isArray(value) ? 'array' : typeof value,
+              keys: isPlainObject(value) ? Object.keys(value) : [],
+            },
+          ])
+        ),
       });
     }
 
@@ -241,9 +397,12 @@ export default {
         return json({ status: 'error', message: 'payload-must-be-object' }, { status: 400 });
       }
 
+      const currentConfig = await getRuntimeConfig(env);
       const nextConfig = {
-        ...(await getRuntimeConfig(env)).config,
-        ...payload,
+        ...deepMerge(currentConfig.config, payload),
+      };
+      nextConfig.runtime = {
+        ...nextConfig.runtime,
         updated_at: new Date().toISOString(),
       };
       const saveResult = await saveRuntimeConfig(env, nextConfig);
