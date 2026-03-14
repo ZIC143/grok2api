@@ -1120,6 +1120,8 @@
         if (!res.ok) throw new Error(t('chat.requestFailedStatus', { status: res.status }));
         if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
           setStatus('connected', 'Bridge 已转发到后端');
+          await handleNonStreamResponse(res, assistantEntry, sendSessionId);
+          return;
         }
         await handleStream(res, assistantEntry, sendSessionId);
         setStatus('connected', t('common.done'));
@@ -1564,6 +1566,16 @@
     return res.headers.get('x-grok2api-chat-bridge') || '';
   }
 
+  async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
+    const data = await res.json();
+    const content = data && data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content || ''
+      : '';
+    updateMessage(assistantEntry, content, true);
+    assistantEntry.committed = true;
+    commitToSession(targetSessionId, content);
+  }
+
   function attachAssistantActions(entry) {
     if (!entry || !entry.row) return;
     const actions = document.createElement('div');
@@ -1723,6 +1735,8 @@
 
       if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
         setStatus('connected', 'Bridge 已转发到后端');
+        await handleNonStreamResponse(res, assistantEntry, sendSessionId);
+        return;
       }
 
       await handleStream(res, assistantEntry, sendSessionId);
