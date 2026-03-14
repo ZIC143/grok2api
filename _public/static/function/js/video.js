@@ -54,16 +54,27 @@
     if (!parts) return;
     const { bootstrap, ui, fieldMap } = parts;
 
-    const defaults = bootstrap.defaults || {};
-    const options = bootstrap.options || {};
     const lengthField = fieldMap.get('video_length');
     const imageField = fieldMap.get('image_url');
 
-    defaultReasoningEffort = String(defaults.reasoning_effort || defaultReasoningEffort);
-    window.SchemaUI.setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '3:2');
-    window.SchemaUI.setSelectOptions(lengthSelect, Array.isArray(options.video_lengths) ? options.video_lengths : [], defaults.video_length || 6, (value) => `${value}s`);
-    window.SchemaUI.setSelectOptions(resolutionSelect, Array.isArray(options.resolution_names) ? options.resolution_names : [], defaults.resolution_name || '480p');
-    window.SchemaUI.setSelectOptions(presetSelect, Array.isArray(options.presets) ? options.presets : [], defaults.preset || 'normal');
+    window.SceneAssembly.applyBootstrapDefaults(parts, {
+      optionBindings: [
+        { fieldName: 'aspect_ratio', element: ratioSelect, optionsKey: 'aspect_ratios', defaultKey: 'aspect_ratio' },
+        { fieldName: 'video_length', element: lengthSelect, optionsKey: 'video_lengths', defaultKey: 'video_length', formatter: (value) => `${value}s` },
+        { fieldName: 'resolution_name', element: resolutionSelect, optionsKey: 'resolution_names', defaultKey: 'resolution_name' },
+        { fieldName: 'preset', element: presetSelect, optionsKey: 'presets', defaultKey: 'preset' },
+      ],
+      valueBindings: [
+        {
+          fieldName: 'reasoning_effort',
+          element: presetSelect,
+          defaultKey: 'reasoning_effort',
+          apply: (value) => {
+            defaultReasoningEffort = String(value || defaultReasoningEffort);
+          },
+        },
+      ],
+    });
     window.SceneAssembly.applySceneFields(parts, {
       fieldHandlers: [
         { fieldName: 'aspect_ratio', apply: (field) => window.SchemaUI.renderSelectField(ratioSelect, field, { labelElement: ratioLabel, formatter: (value) => String(value) }) },

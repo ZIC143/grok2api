@@ -61,17 +61,26 @@
       finalMinBytesDefault = Number(bootstrap.final_min_bytes);
     }
 
-    const defaults = bootstrap.defaults || {};
-    const options = bootstrap.options || {};
-    window.SchemaUI.setSelectOptions(ratioSelect, Array.isArray(options.aspect_ratios) ? options.aspect_ratios : [], defaults.aspect_ratio || '2:3');
-    if (nsfwSelect && typeof defaults.nsfw === 'boolean') {
-      nsfwSelect.value = defaults.nsfw ? 'true' : 'false';
-    }
+    window.SceneAssembly.applyBootstrapDefaults(parts, {
+      optionBindings: [
+        { fieldName: 'aspect_ratio', element: ratioSelect, optionsKey: 'aspect_ratios', defaultKey: 'aspect_ratio' },
+        { fieldName: 'concurrent', element: concurrentSelect },
+      ],
+      valueBindings: [
+        {
+          fieldName: 'nsfw',
+          element: nsfwSelect,
+          defaultKey: 'nsfw',
+          apply: (value) => {
+            if (nsfwSelect && typeof value === 'boolean') {
+              nsfwSelect.value = value ? 'true' : 'false';
+            }
+          },
+        },
+      ],
+    });
 
     const concurrentField = fieldMap.get('concurrent');
-    if (concurrentSelect && concurrentField && Array.isArray(concurrentField.options)) {
-      window.SchemaUI.setSelectOptions(concurrentSelect, concurrentField.options, concurrentField.default);
-    }
     window.SceneAssembly.applySceneFields(parts, {
       fieldHandlers: [
         { fieldName: 'aspect_ratio', apply: (field) => window.SchemaUI.renderSelectField(ratioSelect, field, { labelElement: ratioLabel, formatter: (value) => String(value) }) },

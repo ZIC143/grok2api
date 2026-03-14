@@ -82,6 +82,41 @@ function applySceneFields(parts, options = {}) {
   });
 }
 
+function applyBootstrapDefaults(parts, options = {}) {
+  if (!parts) return;
+  const { bootstrap, fieldMap } = parts;
+  const defaults = bootstrap && bootstrap.defaults ? bootstrap.defaults : {};
+  const sourceOptions = bootstrap && bootstrap.options ? bootstrap.options : {};
+
+  if (Array.isArray(options.optionBindings)) {
+    options.optionBindings.forEach((binding) => {
+      if (!binding || !binding.element || !binding.fieldName) return;
+      const field = fieldMap.get(binding.fieldName);
+      const optionValues = binding.optionsKey && Array.isArray(sourceOptions[binding.optionsKey])
+        ? sourceOptions[binding.optionsKey]
+        : (field && Array.isArray(field.options) ? field.options : []);
+      if (!optionValues.length) return;
+      const preferred = binding.defaultKey && defaults[binding.defaultKey] !== undefined
+        ? defaults[binding.defaultKey]
+        : (field ? field.default : undefined);
+      window.SchemaUI.setSelectOptions(binding.element, optionValues, preferred, binding.formatter);
+    });
+  }
+
+  if (Array.isArray(options.valueBindings)) {
+    options.valueBindings.forEach((binding) => {
+      if (!binding || !binding.element || !binding.defaultKey) return;
+      const value = defaults[binding.defaultKey];
+      if (value === undefined || value === null) return;
+      if (typeof binding.apply === 'function') {
+        binding.apply(value, parts);
+        return;
+      }
+      binding.element.value = String(value);
+    });
+  }
+}
+
 window.SceneAssembly = {
   getSceneFromManifest,
   createFieldMap,
@@ -89,4 +124,5 @@ window.SceneAssembly = {
   applySceneMeta,
   applySceneSections,
   applySceneFields,
+  applyBootstrapDefaults,
 };

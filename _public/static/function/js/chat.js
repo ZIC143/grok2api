@@ -112,18 +112,41 @@
       restoreSessionModel();
     }
 
-    const defaults = bootstrap.defaults || {};
-    if (tempRange && Number.isFinite(Number(defaults.temperature))) {
-      tempRange.value = String(defaults.temperature);
-    }
-    if (topPRange && Number.isFinite(Number(defaults.top_p))) {
-      topPRange.value = String(defaults.top_p);
-    }
+    window.SceneAssembly.applyBootstrapDefaults(parts, {
+      valueBindings: [
+        {
+          fieldName: 'temperature',
+          element: tempRange,
+          defaultKey: 'temperature',
+          apply: (value) => {
+            if (tempRange && Number.isFinite(Number(value))) {
+              tempRange.value = String(value);
+            }
+          },
+        },
+        {
+          fieldName: 'top_p',
+          element: topPRange,
+          defaultKey: 'top_p',
+          apply: (value) => {
+            if (topPRange && Number.isFinite(Number(value))) {
+              topPRange.value = String(value);
+            }
+          },
+        },
+        {
+          fieldName: 'messages',
+          element: systemInput,
+          defaultKey: 'custom_instruction',
+          apply: (value) => {
+            if (systemInput && typeof value === 'string' && !systemInput.value.trim()) {
+              systemInput.value = value;
+            }
+          },
+        },
+      ],
+    });
     updateRangeValues();
-
-    if (systemInput && typeof defaults.custom_instruction === 'string' && !systemInput.value.trim()) {
-      systemInput.value = defaults.custom_instruction;
-    }
 
     window.SceneAssembly.applySceneFields(parts, {
       fieldHandlers: [
