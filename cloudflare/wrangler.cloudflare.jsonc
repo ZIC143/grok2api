@@ -20,6 +20,7 @@
   "vars": {
     "APP_NAME": "grok2api",
     "APP_ENV": "__CF_ENVIRONMENT__",
-    "CHAT_BRIDGE_BACKEND_URL": ""
+    "CHAT_BRIDGE_BACKEND_URL": "",
+    "IMAGINE_BRIDGE_BACKEND_URL": ""
   }
 }

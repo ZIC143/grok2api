@@ -138,6 +138,7 @@ function getChatInitConfig(config) {
 }
 
 function getImagineInitConfig(config) {
+  const bridge = getImagineBridgeSummary(config);
   return {
     status: 'ok',
     scene: 'imagine',
@@ -163,7 +164,8 @@ function getImagineInitConfig(config) {
       ws_supported: false,
       sse_supported: false,
       start_supported: false,
-      worker_bridge_mode: 'init-only',
+      worker_bridge_mode: bridge.configured ? 'backend-forward-ready' : 'init-only',
+      bridge,
     },
   };
 }
@@ -510,6 +512,7 @@ function getFunctionAssemblyManifest(config) {
       worker_bridge_mode: 'frontend-assembly-manifest',
       submit_supported: true,
       chat_bridge: getChatBridgeSummary(config),
+      imagine_bridge: getImagineBridgeSummary(config),
     },
     endpoints: {
       bootstrap: '/v1/function/bootstrap',
@@ -919,6 +922,7 @@ function buildDefaultConfig(env) {
   config.runtime.environment = env.APP_ENV || 'unknown';
   config.app.app_url = env.APP_URL || '';
   config.runtime.chat_bridge_backend_url = env.CHAT_BRIDGE_BACKEND_URL || '';
+  config.runtime.imagine_bridge_backend_url = env.IMAGINE_BRIDGE_BACKEND_URL || '';
   return config;
 }
 
@@ -928,6 +932,16 @@ function getChatBridgeSummary(config) {
     configured: Boolean(backendUrl),
     backend_url: backendUrl,
     mode: backendUrl ? 'backend-forward-ready' : 'probe-only',
+  };
+}
+
+function getImagineBridgeSummary(config) {
+  const backendUrl = String(config.runtime?.imagine_bridge_backend_url || '').trim();
+  return {
+    configured: Boolean(backendUrl),
+    backend_url: backendUrl,
+    mode: backendUrl ? 'backend-forward-ready' : 'init-only',
+    target: '/v1/images/generations',
   };
 }
 
