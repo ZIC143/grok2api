@@ -1582,14 +1582,6 @@
     return window.AdminAuth.getBridgeMode(res, 'x-grok2api-chat-bridge');
   }
 
-  function getChatBackendTraceId(res) {
-    return window.AdminAuth.getBridgeBackendTraceId(res);
-  }
-
-  function getChatRetryAfter(res) {
-    return window.AdminAuth.getBridgeRetryAfter(res);
-  }
-
   function getTraceAwareFailureMessage(res) {
     return window.AdminAuth.getBridgeFailureMessage(
       res,

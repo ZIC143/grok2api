@@ -54,16 +54,8 @@
     return { Authorization: authHeader };
   }
 
-  function getImagineBackendTraceId(res) {
-    return window.AdminAuth.getBridgeBackendTraceId(res);
-  }
-
   function getImagineBridgeLabelFromResponse(res) {
     return window.AdminAuth.getBridgeMode(res, 'x-grok2api-imagine-bridge');
-  }
-
-  function getImagineRetryAfter(res) {
-    return window.AdminAuth.getBridgeRetryAfter(res);
   }
 
   function getImagineTraceAwareFailureMessage(res) {
