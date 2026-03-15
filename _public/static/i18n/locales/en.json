@@ -424,6 +424,8 @@
     "noChatToRetry": "No conversation to retry",
     "requestFailedCheck": "Request failed, please check service status",
     "requestFailedCheckTrace": "Request failed, please check service status (Trace: {trace})",
+    "requestFailedCheckRetry": "Request failed, please retry later (Retry-After: {retryAfter})",
+    "requestFailedCheckTraceRetry": "Request failed, please retry later (Retry-After: {retryAfter}, Trace: {trace})",
     "requestFailedStatus": "Request failed: {status}",
     "bridgeBackendReady": "Bridge backend forwarding is ready",
     "bridgeProbeOnly": "Bridge probe mode, only non-stream echo is supported",

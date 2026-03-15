@@ -1580,8 +1580,20 @@
     return res.headers.get('x-grok2api-backend-trace-id') || '';
   }
 
+  function getChatRetryAfter(res) {
+    if (!res || !res.headers) return '';
+    return res.headers.get('retry-after') || '';
+  }
+
   function getTraceAwareFailureMessage(res) {
     const traceId = getChatBackendTraceId(res);
+    const retryAfter = getChatRetryAfter(res);
+    if (traceId && retryAfter) {
+      return t('chat.requestFailedCheckTraceRetry', { trace: traceId, retryAfter });
+    }
+    if (retryAfter) {
+      return t('chat.requestFailedCheckRetry', { retryAfter });
+    }
     if (!traceId) return t('chat.requestFailedCheck');
     return t('chat.requestFailedCheckTrace', { trace: traceId });
   }
