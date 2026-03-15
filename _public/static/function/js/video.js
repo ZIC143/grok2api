@@ -459,7 +459,7 @@
     }
     const imageUrl = fileDataUrl || rawUrl;
 
-    const res = await window.AdminAuth.postFunctionJsonRaw(
+    const { res, data } = await window.AdminAuth.executeBridgeJson(
       '/v1/function/video/start',
       {
         prompt,
@@ -473,16 +473,15 @@
       {
         headers: buildAuthHeaders(authHeader),
         onError: async () => {},
+        fallbackError: t('common.requestFailed'),
+        fallbackToastKey: 'video.requestFailedCheck',
+        traceKey: 'video.requestFailedCheckTrace',
+        retryKey: 'video.requestFailedCheckRetry',
+        traceRetryKey: 'video.requestFailedCheckTraceRetry',
+        translate: t,
       }
     );
 
-    if (!res.ok) {
-      const errorText = await toVideoBridgeError(res);
-      const toastText = getVideoTraceAwareFailureMessage(res);
-      throw new Error(`${errorText}|||${toastText}`);
-    }
-
-    const data = await res.json();
     if (data && data.bridge_mode === 'phase-l-non-stream-probe') {
       setStatus('connected', t('video.bridgeProbeOnly'));
       toast(t('video.bridgeProbeAccepted'), 'success');

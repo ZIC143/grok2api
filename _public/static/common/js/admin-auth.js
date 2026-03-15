@@ -418,6 +418,24 @@ async function parseBridgeError(res, fallbackMessage) {
   return fallbackMessage || `Request failed: ${res.status}`;
 }
 
+async function executeBridgeJson(url, payload, options = {}) {
+  const res = await postFunctionJsonRaw(url, payload, options);
+  if (!res.ok) {
+    const errorText = await parseBridgeError(res, options.fallbackError || 'Request failed');
+    const toastText = getBridgeFailureMessage(
+      res,
+      options.fallbackToastKey || 'common.requestFailed',
+      options.traceKey || options.fallbackToastKey || 'common.requestFailed',
+      options.retryKey || options.fallbackToastKey || 'common.requestFailed',
+      options.traceRetryKey || options.fallbackToastKey || 'common.requestFailed',
+      options.translate
+    );
+    throw new Error(`${errorText}|||${toastText}`);
+  }
+  const data = await res.json();
+  return { res, data };
+}
+
 async function getJson(url, options = {}) {
   const res = await fetch(url, {
     method: 'GET',
@@ -456,6 +474,7 @@ window.AdminAuth = {
   getBridgeRetryAfter,
   getBridgeFailureMessage,
   parseBridgeError,
+  executeBridgeJson,
   getJson,
   buildAuthHeaders,
   logout,
