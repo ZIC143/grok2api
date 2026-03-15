@@ -49,6 +49,10 @@
   let finalMinBytesDefault = 100000;
   let imagineBridgeMode = 'init-only';
 
+  function buildAuthHeaders(authHeader) {
+    return window.AdminAuth.buildFunctionJsonHeaders(authHeader);
+  }
+
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
@@ -301,6 +305,52 @@
       }
     );
     return data && data.task_id ? String(data.task_id) : '';
+  }
+
+  function handleImagineBridgeResult(data, meta = {}) {
+    const images = data && Array.isArray(data.data) ? data.data : [];
+    let appended = 0;
+    images.forEach((entry, index) => {
+      if (!entry || typeof entry !== 'object') return;
+      const payload = entry.b64_json || entry.base64 || entry.url;
+      if (!payload) return;
+      appended += 1;
+      imageCount += 1;
+      updateCount(imageCount);
+      appendImage(payload, {
+        sequence: imageCount,
+        prompt: meta.prompt || '',
+        elapsed_ms: null,
+        index,
+      });
+    });
+    return appended;
+  }
+
+  async function startImagineBridge(prompt, ratio, authHeader, nsfwEnabled) {
+    const data = await window.AdminAuth.postFunctionJsonExpectJson(
+      '/v1/function/imagine/start',
+      { prompt, aspect_ratio: ratio, nsfw: nsfwEnabled },
+      {
+        headers: buildAuthHeaders(authHeader),
+        errorMessage: 'Failed to start imagine bridge',
+      }
+    );
+
+    if (data && data.bridge_mode === 'phase-j-non-stream-probe') {
+      setStatus('connected', t('imagine.bridgeProbeOnly'));
+      toast(t('imagine.bridgeProbeAccepted', { ratio }), 'success');
+      return;
+    }
+
+    const appended = handleImagineBridgeResult(data, { prompt, ratio });
+    if (!appended) {
+      throw new Error(t('imagine.bridgeNoImages'));
+    }
+
+    setStatus('connected', t('common.done'));
+    setButtons(false);
+    toast(t('imagine.bridgeImagesReady', { count: appended }), 'success');
   }
 
   async function createImagineTasks(prompt, ratio, concurrent, authHeader, nsfwEnabled) {
@@ -749,6 +799,23 @@
     
     if (isRunning) {
       toast(t('common.alreadyRunning'), 'warning');
+      return;
+    }
+
+    if (imagineBridgeMode === 'backend-forward-ready') {
+      isRunning = true;
+      setStatus('connecting', t('common.connecting'));
+      startBtn.disabled = true;
+      try {
+        await startImagineBridge(prompt, ratio, authHeader, nsfwEnabled);
+      } catch (e) {
+        setStatus('error', t('common.failed'));
+        toast(e && e.message ? e.message : t('common.generationFailed'), 'error');
+      } finally {
+        isRunning = false;
+        startBtn.disabled = false;
+        updateModeValue();
+      }
       return;
     }
 
