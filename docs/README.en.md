@@ -162,6 +162,25 @@ At the end of Phase 1, the following lightweight checks are recommended:
 - Completed: imagine / video probe and backend-forward success states now use shared response-header parsing.
 - Completed: a leftover syntax issue in `cloudflare/worker-entry.js` was fixed so the workspace validates cleanly.
 
+### Phase 1 Actual Regression Summary
+
+The following regression and validation results were actually completed in this round:
+
+- Passed: static error checks for `_public/static/common/js/admin-auth.js`, `chat.js`, `imagine.js`, and `video.js` all returned zero errors.
+- Passed: `cloudflare/worker-entry.js` also returned zero static errors after fixing a leftover syntax fragment.
+- Confirmed: the related workspace changes were committed, and the Phase 1 code-consolidation changes are recorded in git history.
+- Confirmed: the Cloudflare Workers deployment workflow already defines automated smoke checks for `/health`, `/ready`, `/meta`, `/config`, and `/config/sections`.
+
+The following items were **not actually executed** in this round:
+
+- No fresh Workers deployment smoke run was executed against a live deployment.
+- No real browser-based click-through regression was performed for the chat / imagine / video pages.
+
+Conclusion:
+
+- Phase 1 **code-level consolidation and static validation** are complete.
+- To fully close Phase 1, the next step should be either one real deployment smoke run or one recorded browser manual regression pass.
+
 > MySQL example: `mysql+aiomysql://user:password@host:3306/db` (if you provide `mysql://`, it will be converted to `mysql+aiomysql://`).
 
 <br>

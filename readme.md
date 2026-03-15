@@ -162,6 +162,25 @@ docker compose up -d
 - 已完成：imagine / video 的 probe/backend-forward 成功态统一改为按响应头解析。
 - 已完成：顺手修复 `cloudflare/worker-entry.js` 的遗留语法问题，确保当前工作区校验通过。
 
+### Phase 1 实际回归结果摘要
+
+本轮已实际完成的回归与校验结果如下：
+
+- 已通过：`_public/static/common/js/admin-auth.js`、`chat.js`、`imagine.js`、`video.js` 静态错误检查均为 0。
+- 已通过：`cloudflare/worker-entry.js` 在修复遗留语法残片后，静态错误检查为 0。
+- 已确认：当前工作区相关改动已完成提交，Phase 1 代码收敛改动已落库。
+- 已确认：Cloudflare Workers 部署工作流中已有 `/health`、`/ready`、`/meta`、`/config`、`/config/sections` 自动 smoke 检查定义。
+
+本轮**未实际执行**的内容：
+
+- 未在真实部署环境执行一次新的 Workers 部署 smoke。
+- 未在浏览器中逐页手动点击 chat / imagine / video 页面完成真实 UI 回归。
+
+结论：
+
+- Phase 1 的**代码级收敛与静态校验**已完成。
+- 若要正式宣告 Phase 1 完全关闭，建议下一步补一次真实部署 smoke 或浏览器手工回归结果记录。
+
 > MySQL 示例：`mysql+aiomysql://user:password@host:3306/db`（若填 `mysql://` 会自动转为 `mysql+aiomysql://`）
 
 <br>
