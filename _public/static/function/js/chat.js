@@ -1566,6 +1566,21 @@
     return res.headers.get('x-grok2api-chat-bridge') || '';
   }
 
+  async function toChatBridgeError(res) {
+    if (!res) return t('chat.requestFailedStatus', { status: 'unknown' });
+    try {
+      const data = await res.clone().json();
+      const parts = [data && data.message, data && data.detail, data && data.code]
+        .filter((value, index, list) => value && list.indexOf(value) === index);
+      if (parts.length) {
+        return parts.join(' · ');
+      }
+    } catch (e) {
+      // ignore body parse errors
+    }
+    return t('chat.requestFailedStatus', { status: res.status });
+  }
+
   async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
     const data = await res.json();
     const content = data && data.choices && data.choices[0] && data.choices[0].message
@@ -1653,7 +1668,13 @@
       );
 
       if (!res.ok) {
-        throw new Error(t('chat.requestFailedStatus', { status: res.status }));
+        throw new Error(await toChatBridgeError(res));
+      }
+
+      if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
+        setStatus('connected', 'Bridge 已转发到后端');
+        await handleNonStreamResponse(res, assistantEntry, retrySessionId);
+        return;
       }
 
       await handleStream(res, assistantEntry, retrySessionId);
@@ -1730,7 +1751,7 @@
       );
 
       if (!res.ok) {
-        throw new Error(t('chat.requestFailedStatus', { status: res.status }));
+        throw new Error(await toChatBridgeError(res));
       }
 
       if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
