@@ -53,6 +53,51 @@
     return window.AdminAuth.buildFunctionJsonHeaders(authHeader);
   }
 
+  function getImagineBackendTraceId(res) {
+    if (!res || !res.headers) return '';
+    return res.headers.get('x-grok2api-backend-trace-id') || '';
+  }
+
+  function getImagineRetryAfter(res) {
+    if (!res || !res.headers) return '';
+    return res.headers.get('retry-after') || '';
+  }
+
+  function getImagineTraceAwareFailureMessage(res) {
+    const traceId = getImagineBackendTraceId(res);
+    const retryAfter = getImagineRetryAfter(res);
+    if (traceId && retryAfter) {
+      return t('imagine.requestFailedCheckTraceRetry', { trace: traceId, retryAfter });
+    }
+    if (retryAfter) {
+      return t('imagine.requestFailedCheckRetry', { retryAfter });
+    }
+    if (traceId) {
+      return t('imagine.requestFailedCheckTrace', { trace: traceId });
+    }
+    return t('imagine.requestFailedCheck');
+  }
+
+  async function toImagineBridgeError(res) {
+    if (!res) return t('common.requestFailed');
+    try {
+      const data = await res.clone().json();
+      const errorData = data && typeof data.error === 'object' ? data.error : null;
+      const parts = [
+        data && data.message,
+        data && data.detail,
+        data && data.code,
+        errorData && errorData.message,
+        errorData && errorData.param,
+        errorData && errorData.code,
+      ].filter((value, index, list) => value && list.indexOf(value) === index);
+      if (parts.length) return parts.join(' · ');
+    } catch (e) {
+      // ignore parse errors
+    }
+    return t('common.requestFailed');
+  }
+
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
@@ -328,14 +373,20 @@
   }
 
   async function startImagineBridge(prompt, ratio, authHeader, nsfwEnabled) {
-    const data = await window.AdminAuth.postFunctionJsonExpectJson(
+    const res = await window.AdminAuth.postFunctionJsonRaw(
       '/v1/function/imagine/start',
       { prompt, aspect_ratio: ratio, nsfw: nsfwEnabled },
       {
         headers: buildAuthHeaders(authHeader),
-        errorMessage: 'Failed to start imagine bridge',
+        onError: async () => {},
       }
     );
+
+    if (!res.ok) {
+      throw new Error(`${await toImagineBridgeError(res)}|||${getImagineTraceAwareFailureMessage(res)}`);
+    }
+
+    const data = await res.json();
 
     if (data && data.bridge_mode === 'phase-j-non-stream-probe') {
       setStatus('connected', t('imagine.bridgeProbeOnly'));
@@ -810,7 +861,11 @@
         await startImagineBridge(prompt, ratio, authHeader, nsfwEnabled);
       } catch (e) {
         setStatus('error', t('common.failed'));
-        toast(e && e.message ? e.message : t('common.generationFailed'), 'error');
+        const parts = String(e && e.message ? e.message : '').split('|||');
+        const displayError = parts[0] || t('common.generationFailed');
+        const toastMessage = parts[1] || parts[0] || t('imagine.requestFailedCheck');
+        toast(toastMessage, 'error');
+        updateError(displayError);
       } finally {
         isRunning = false;
         startBtn.disabled = false;
