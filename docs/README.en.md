@@ -94,6 +94,23 @@ docker compose up -d
 | `SERVER_STORAGE_TYPE` | Storage type (`local`/`redis`/`mysql`/`pgsql`) | `local` | `pgsql` |
 | `SERVER_STORAGE_URL` | Storage DSN (optional for local) | `""` | `postgresql+asyncpg://user:password@host:5432/db` |
 
+### Cloudflare Workers Bridge Variables
+
+When using Cloudflare Workers as a front bridge layer, you can additionally configure:
+
+| Name | Description | Default |
+| :-- | :-- | :-- |
+| `CHAT_BRIDGE_BACKEND_URL` | Backend base URL for non-stream chat function bridge, e.g. `https://your-backend.example.com` | `""` |
+| `IMAGINE_BRIDGE_BACKEND_URL` | Backend base URL for non-stream imagine function bridge | `""` |
+| `VIDEO_BRIDGE_BACKEND_URL` | Backend base URL for non-stream video function bridge | `""` |
+
+Notes:
+
+- These variables are used by the Workers bridge layer only and do not change the Python backend routes themselves.
+- The current bridge scope mainly covers the minimal executable flow for function pages.
+- If a specific bridge backend URL is not configured, chat / imagine / video fall back to `probe` or `init-only` mode.
+- When forwarding to the backend, the bridge will try to reuse `app.api_key` as the backend Bearer token automatically.
+
 > MySQL example: `mysql+aiomysql://user:password@host:3306/db` (if you provide `mysql://`, it will be converted to `mysql+aiomysql://`).
 
 <br>

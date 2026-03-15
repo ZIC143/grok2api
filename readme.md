@@ -94,6 +94,23 @@ docker compose up -d
 | `SERVER_STORAGE_TYPE` | 存储类型（`local`/`redis`/`mysql`/`pgsql`） | `local` | `pgsql` |
 | `SERVER_STORAGE_URL` | 存储连接串（local 时可为空） | `""` | `postgresql+asyncpg://user:password@host:5432/db` |
 
+### Cloudflare Workers Bridge 变量
+
+当你将 Cloudflare Workers 作为前置 bridge 层使用时，可额外配置以下变量：
+
+| 变量名 | 说明 | 默认值 |
+| :-- | :-- | :-- |
+| `CHAT_BRIDGE_BACKEND_URL` | chat function 非流式 bridge 的后端地址，例如 `https://your-backend.example.com` | `""` |
+| `IMAGINE_BRIDGE_BACKEND_URL` | imagine function 非流式 bridge 的后端地址 | `""` |
+| `VIDEO_BRIDGE_BACKEND_URL` | video function 非流式 bridge 的后端地址 | `""` |
+
+说明：
+
+- 以上变量仅用于 Workers bridge 层，不改变 Python 后端自身路由。
+- 当前 bridge 主要覆盖 function 页的最小可用执行链路。
+- 当未配置对应地址时，chat / imagine / video 会退回到 `probe` 或 `init-only` 模式。
+- bridge 转发到后端时，会自动尝试复用 `app.api_key` 作为后端 Bearer 鉴权。
+
 > MySQL 示例：`mysql+aiomysql://user:password@host:3306/db`（若填 `mysql://` 会自动转为 `mysql+aiomysql://`）
 
 <br>
