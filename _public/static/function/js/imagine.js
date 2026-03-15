@@ -356,22 +356,23 @@
   }
 
   async function startImagineBridge(prompt, ratio, authHeader, nsfwEnabled) {
-    const res = await window.AdminAuth.postFunctionJsonRaw(
+    const { res, data } = await window.AdminAuth.executeBridgeJson(
       '/v1/function/imagine/start',
       { prompt, aspect_ratio: ratio, nsfw: nsfwEnabled },
       {
         headers: buildAuthHeaders(authHeader),
         onError: async () => {},
+        fallbackError: t('common.requestFailed'),
+        fallbackToastKey: 'imagine.requestFailedCheck',
+        traceKey: 'imagine.requestFailedCheckTrace',
+        retryKey: 'imagine.requestFailedCheckRetry',
+        traceRetryKey: 'imagine.requestFailedCheckTraceRetry',
+        translate: t,
       }
     );
 
-    if (!res.ok) {
-      throw new Error(`${await toImagineBridgeError(res)}|||${getImagineTraceAwareFailureMessage(res)}`);
-    }
-
     const isBackendForward = window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-imagine-bridge');
     const isProbe = window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-imagine-bridge');
-    const data = await res.json();
 
     if (data && data.bridge_mode === 'phase-j-non-stream-probe') {
       setStatus('connected', t('imagine.bridgeProbeOnly'));
