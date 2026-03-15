@@ -117,6 +117,13 @@ Current bridge mode summary:
 - `imagine`: minimal non-stream function-page bridge is available; without a backend URL it falls back to `probe/init-only`.
 - `video`: minimal non-stream function-page bridge is available; without a backend URL it falls back to `probe/init-only`.
 
+### Current Stage Status
+
+- Phase I: non-stream chat bridge is complete.
+- Phase J: minimal imagine bridge loop is complete.
+- Video: minimal non-stream bridge loop is complete.
+- Phase K: one round of shared bridge helper / execution-wrapper consolidation is complete.
+
 > MySQL example: `mysql+aiomysql://user:password@host:3306/db` (if you provide `mysql://`, it will be converted to `mysql+aiomysql://`).
 
 <br>

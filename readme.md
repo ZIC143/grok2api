@@ -117,6 +117,13 @@ docker compose up -d
 - `imagine`：已支持 function 页最小非流式 bridge，未配置后端地址时保留 `probe/init-only` 回退。
 - `video`：已支持 function 页最小非流式 bridge，未配置后端地址时保留 `probe/init-only` 回退。
 
+### 当前阶段状态
+
+- Phase I：Chat 非流式 bridge 已完成。
+- Phase J：Imagine 最小 bridge 闭环已完成。
+- Video：最小 non-stream bridge 闭环已完成。
+- Phase K：共享 bridge helper / 执行包装抽取已完成一轮收敛。
+
 > MySQL 示例：`mysql+aiomysql://user:password@host:3306/db`（若填 `mysql://` 会自动转为 `mysql+aiomysql://`）
 
 <br>
