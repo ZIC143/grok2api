@@ -415,7 +415,7 @@ function getVideoFormSchema(config) {
     scene: 'video',
     endpoint: '/v1/function/video/start',
     method: 'POST',
-    submit_supported: false,
+    submit_supported: true,
     examples: {
       minimal: {
         prompt: '海边黄昏的慢镜头',
