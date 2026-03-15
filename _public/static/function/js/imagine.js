@@ -55,48 +55,26 @@
   }
 
   function getImagineBackendTraceId(res) {
-    if (!res || !res.headers) return '';
-    return res.headers.get('x-grok2api-backend-trace-id') || '';
+    return window.AdminAuth.getBridgeBackendTraceId(res);
   }
 
   function getImagineRetryAfter(res) {
-    if (!res || !res.headers) return '';
-    return res.headers.get('retry-after') || '';
+    return window.AdminAuth.getBridgeRetryAfter(res);
   }
 
   function getImagineTraceAwareFailureMessage(res) {
-    const traceId = getImagineBackendTraceId(res);
-    const retryAfter = getImagineRetryAfter(res);
-    if (traceId && retryAfter) {
-      return t('imagine.requestFailedCheckTraceRetry', { trace: traceId, retryAfter });
-    }
-    if (retryAfter) {
-      return t('imagine.requestFailedCheckRetry', { retryAfter });
-    }
-    if (traceId) {
-      return t('imagine.requestFailedCheckTrace', { trace: traceId });
-    }
-    return t('imagine.requestFailedCheck');
+    return window.AdminAuth.getBridgeFailureMessage(
+      res,
+      'imagine.requestFailedCheck',
+      'imagine.requestFailedCheckTrace',
+      'imagine.requestFailedCheckRetry',
+      'imagine.requestFailedCheckTraceRetry',
+      t
+    );
   }
 
   async function toImagineBridgeError(res) {
-    if (!res) return t('common.requestFailed');
-    try {
-      const data = await res.clone().json();
-      const errorData = data && typeof data.error === 'object' ? data.error : null;
-      const parts = [
-        data && data.message,
-        data && data.detail,
-        data && data.code,
-        errorData && errorData.message,
-        errorData && errorData.param,
-        errorData && errorData.code,
-      ].filter((value, index, list) => value && list.indexOf(value) === index);
-      if (parts.length) return parts.join(' · ');
-    } catch (e) {
-      // ignore parse errors
-    }
-    return t('common.requestFailed');
+    return window.AdminAuth.parseBridgeError(res, t('common.requestFailed'));
   }
 
   function applyImagineManifest(manifest) {

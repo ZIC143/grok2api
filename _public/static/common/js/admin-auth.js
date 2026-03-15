@@ -350,6 +350,57 @@ async function postFunctionJsonRaw(url, payload, options = {}) {
   return postFunctionJson(url, payload, options);
 }
 
+function getBridgeBackendTraceId(res) {
+  if (!res || !res.headers) return '';
+  return res.headers.get('x-grok2api-backend-trace-id') || '';
+}
+
+function getBridgeRetryAfter(res) {
+  if (!res || !res.headers) return '';
+  return res.headers.get('retry-after') || '';
+}
+
+function getBridgeFailureMessage(res, fallbackKey, traceKey, retryKey, traceRetryKey, translate) {
+  const tFn = typeof translate === 'function' ? translate : (key, params) => {
+    if (typeof t === 'function') return t(key, params);
+    return key;
+  };
+  const traceId = getBridgeBackendTraceId(res);
+  const retryAfter = getBridgeRetryAfter(res);
+  if (traceId && retryAfter) {
+    return tFn(traceRetryKey, { trace: traceId, retryAfter });
+  }
+  if (retryAfter) {
+    return tFn(retryKey, { retryAfter });
+  }
+  if (traceId) {
+    return tFn(traceKey, { trace: traceId });
+  }
+  return tFn(fallbackKey);
+}
+
+async function parseBridgeError(res, fallbackMessage) {
+  if (!res) return fallbackMessage || 'Request failed';
+  try {
+    const data = await res.clone().json();
+    const errorData = data && typeof data.error === 'object' ? data.error : null;
+    const parts = [
+      data && data.message,
+      data && data.detail,
+      data && data.code,
+      errorData && errorData.message,
+      errorData && errorData.param,
+      errorData && errorData.code,
+    ].filter((value, index, list) => value && list.indexOf(value) === index);
+    if (parts.length) {
+      return parts.join(' · ');
+    }
+  } catch (e) {
+    // ignore body parse errors
+  }
+  return fallbackMessage || `Request failed: ${res.status}`;
+}
+
 async function getJson(url, options = {}) {
   const res = await fetch(url, {
     method: 'GET',
@@ -380,6 +431,10 @@ window.AdminAuth = {
   postFunctionJson,
   postFunctionJsonExpectJson,
   postFunctionJsonRaw,
+  getBridgeBackendTraceId,
+  getBridgeRetryAfter,
+  getBridgeFailureMessage,
+  parseBridgeError,
   getJson,
   buildAuthHeaders,
   logout,

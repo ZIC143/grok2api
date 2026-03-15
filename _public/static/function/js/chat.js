@@ -1576,49 +1576,26 @@
   }
 
   function getChatBackendTraceId(res) {
-    if (!res || !res.headers) return '';
-    return res.headers.get('x-grok2api-backend-trace-id') || '';
+    return window.AdminAuth.getBridgeBackendTraceId(res);
   }
 
   function getChatRetryAfter(res) {
-    if (!res || !res.headers) return '';
-    return res.headers.get('retry-after') || '';
+    return window.AdminAuth.getBridgeRetryAfter(res);
   }
 
   function getTraceAwareFailureMessage(res) {
-    const traceId = getChatBackendTraceId(res);
-    const retryAfter = getChatRetryAfter(res);
-    if (traceId && retryAfter) {
-      return t('chat.requestFailedCheckTraceRetry', { trace: traceId, retryAfter });
-    }
-    if (retryAfter) {
-      return t('chat.requestFailedCheckRetry', { retryAfter });
-    }
-    if (!traceId) return t('chat.requestFailedCheck');
-    return t('chat.requestFailedCheckTrace', { trace: traceId });
+    return window.AdminAuth.getBridgeFailureMessage(
+      res,
+      'chat.requestFailedCheck',
+      'chat.requestFailedCheckTrace',
+      'chat.requestFailedCheckRetry',
+      'chat.requestFailedCheckTraceRetry',
+      t
+    );
   }
 
   async function toChatBridgeError(res) {
-    if (!res) return t('chat.requestFailedStatus', { status: 'unknown' });
-    try {
-      const data = await res.clone().json();
-      const errorData = data && typeof data.error === 'object' ? data.error : null;
-      const parts = [
-        data && data.message,
-        data && data.detail,
-        data && data.code,
-        errorData && errorData.message,
-        errorData && errorData.param,
-        errorData && errorData.code,
-      ]
-        .filter((value, index, list) => value && list.indexOf(value) === index);
-      if (parts.length) {
-        return parts.join(' · ');
-      }
-    } catch (e) {
-      // ignore body parse errors
-    }
-    return t('chat.requestFailedStatus', { status: res.status });
+    return window.AdminAuth.parseBridgeError(res, t('chat.requestFailedStatus', { status: res ? res.status : 'unknown' }));
   }
 
   async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
