@@ -150,6 +150,11 @@
     if (promptInput && ui.title) {
       promptInput.placeholder = ui.title;
     }
+    if (chatBridgeMode === 'backend-forward-ready') {
+      setStatus('connected', t('chat.bridgeBackendReady'));
+    } else if (chatBridgeMode === 'probe-only') {
+      setStatus('connected', t('chat.bridgeProbeOnly'));
+    }
     window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
         statusElement: statusText,
@@ -1119,7 +1124,7 @@
         );
         if (!res.ok) throw new Error(t('chat.requestFailedStatus', { status: res.status }));
         if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
-          setStatus('connected', 'Bridge 已转发到后端');
+          setStatus('connected', t('chat.bridgeForwarded'));
           await handleNonStreamResponse(res, assistantEntry, sendSessionId);
           return;
         }
@@ -1417,11 +1422,15 @@
     return payload;
   }
 
+  function shouldUseNonStreamBridge() {
+    return chatBridgeMode === 'backend-forward-ready' || chatBridgeMode === 'probe-only';
+  }
+
   function buildPayload() {
     const payload = {
       model: modelValue || 'grok-3',
       messages: buildMessages(),
-      stream: true,
+      stream: !shouldUseNonStreamBridge(),
       temperature: Number(tempRange ? tempRange.value : 0.8),
       top_p: Number(topPRange ? topPRange.value : 0.95)
     };
@@ -1432,7 +1441,7 @@
     const payload = {
       model: modelValue || 'grok-3',
       messages: buildMessagesFrom(history),
-      stream: true,
+      stream: !shouldUseNonStreamBridge(),
       temperature: Number(tempRange ? tempRange.value : 0.8),
       top_p: Number(topPRange ? topPRange.value : 0.95)
     };
@@ -1672,7 +1681,7 @@
       }
 
       if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
-        setStatus('connected', 'Bridge 已转发到后端');
+        setStatus('connected', t('chat.bridgeForwarded'));
         await handleNonStreamResponse(res, assistantEntry, retrySessionId);
         return;
       }
@@ -1755,7 +1764,7 @@
       }
 
       if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
-        setStatus('connected', 'Bridge 已转发到后端');
+        setStatus('connected', t('chat.bridgeForwarded'));
         await handleNonStreamResponse(res, assistantEntry, sendSessionId);
         return;
       }
