@@ -1162,6 +1162,106 @@ async function handleFunctionVideoStart(request, env) {
   });
 }
 
+async function handleFunctionVideoStop(request, env) {
+  const auth = await verifyFunctionRequest(request, env);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ detail: 'invalid-json' }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return json({ detail: 'payload-must-be-object' }, { status: 400 });
+  }
+
+  const taskIds = Array.isArray(payload.task_ids) ? payload.task_ids.filter(Boolean) : [];
+  if (!taskIds.length) {
+    return json(
+      {
+        detail: 'task-ids-required',
+        message: 'Video bridge stop requires task_ids',
+        code: 'invalid_video_stop_payload',
+      },
+      { status: 400 }
+    );
+  }
+
+  const bridge = getVideoBridgeSummary(auth.runtimeConfig.config);
+  if (bridge.configured) {
+    try {
+      const backendUrl = new URL(bridge.backend_url);
+      if (!/^https?:$/i.test(backendUrl.protocol)) {
+        throw new Error('invalid_backend_protocol');
+      }
+      const targetUrl = new URL('/v1/function/video/stop', backendUrl);
+      const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
+      const forwardHeaders = new Headers({
+        'content-type': 'application/json',
+        accept: 'application/json',
+        'x-grok2api-video-bridge': 'backend-forward',
+      });
+      if (backendApiKey) {
+        forwardHeaders.set('authorization', `Bearer ${backendApiKey}`);
+      }
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify({ task_ids: taskIds }),
+      });
+
+      const contentType = response.headers.get('content-type') || 'application/json';
+      const backendTraceId = response.headers.get('x-trace-id') || '';
+      const retryAfter = response.headers.get('retry-after') || '';
+      const bodyText = await response.text();
+      const responseHeaders = new Headers({
+        'content-type': contentType,
+        'cache-control': 'no-store',
+        'x-grok2api-video-bridge': 'backend-forward',
+      });
+      if (backendTraceId) {
+        responseHeaders.set('x-grok2api-backend-trace-id', backendTraceId);
+      }
+      if (retryAfter) {
+        responseHeaders.set('retry-after', retryAfter);
+      }
+      return new Response(bodyText, {
+        status: response.status,
+        headers: responseHeaders,
+      });
+    } catch (error) {
+      return json(
+        {
+          status: 'error',
+          message: 'video-stop-bridge-forward-failed',
+          code: 'bridge_forward_failed',
+          detail: String(error && error.message ? error.message : error),
+          bridge,
+        },
+        { status: 502 }
+      );
+    }
+  }
+
+  return json({
+    status: 'accepted',
+    scene: 'video',
+    bridge_mode: 'phase-l-stop-probe',
+    bridge,
+    task_ids: taskIds,
+    removed: 0,
+  }, {
+    headers: {
+      'x-grok2api-video-bridge': 'probe',
+    },
+  });
+}
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -1701,7 +1801,7 @@ async function getOpenAIMetadata(env) {
       video_bridge: false,
     },
   };
-        'non-stream-chat-bridge-only',
+}
 
 export default {
   async fetch(request, env) {
@@ -1834,6 +1934,10 @@ export default {
 
     if (url.pathname === '/v1/function/video/start' && request.method === 'POST') {
       return handleFunctionVideoStart(request, env);
+    }
+
+    if (url.pathname === '/v1/function/video/stop' && request.method === 'POST') {
+      return handleFunctionVideoStop(request, env);
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
