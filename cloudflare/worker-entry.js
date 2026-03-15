@@ -1405,12 +1405,12 @@ async function getOpenAIMetadata(env) {
       config_summary: true,
       config_write: true,
       responses_bridge: false,
-      chat_bridge: false,
+      chat_bridge: true,
       image_bridge: false,
       video_bridge: false,
     },
   };
-}
+        'non-stream-chat-bridge-only',
 
 export default {
   async fetch(request, env) {
