@@ -163,7 +163,7 @@ function getImagineInitConfig(config) {
     capabilities: {
       ws_supported: false,
       sse_supported: false,
-      start_supported: false,
+      start_supported: bridge.configured,
       worker_bridge_mode: bridge.configured ? 'backend-forward-ready' : 'init-only',
       bridge,
     },
@@ -212,6 +212,7 @@ function getFunctionBootstrapConfig(config) {
 }
 
 function getTaskCapabilitySummary(config) {
+  const imagineBridge = getImagineBridgeSummary(config);
   return {
     status: 'ok',
     worker_bridge_mode: 'read-only-capability-probe',
@@ -228,12 +229,13 @@ function getTaskCapabilitySummary(config) {
       },
       imagine: {
         enabled: getFunctionAccessSummary(config).enabled,
-        execution_supported: false,
+        execution_supported: imagineBridge.configured,
         init_supported: true,
         ws_supported: false,
         sse_supported: false,
         download_supported: false,
         concurrent_hint: Number(config.image?.blocked_parallel_attempts || 1),
+        bridge: imagineBridge,
       },
       video: {
         enabled: getFunctionAccessSummary(config).enabled,
@@ -275,6 +277,7 @@ function getTaskLimitSummary(config) {
 }
 
 function getTaskRestrictionSummary(config) {
+  const imagineBridge = getImagineBridgeSummary(config);
   return {
     status: 'ok',
     restrictions: {
@@ -289,7 +292,7 @@ function getTaskRestrictionSummary(config) {
         'streaming-disabled-in-worker-bridge',
       ],
       imagine: [
-        'start-stop-not-bridged',
+        imagineBridge.configured ? 'non-stream-imagine-bridge-only' : 'start-stop-not-bridged',
         'ws-disabled-in-worker-bridge',
         'sse-disabled-in-worker-bridge',
       ],
@@ -892,6 +895,134 @@ async function handleFunctionChatCompletions(request, env) {
   }, {
     headers: {
       'x-grok2api-chat-bridge': 'probe',
+    },
+  });
+}
+
+function resolveImagineSize(aspectRatio) {
+  switch (String(aspectRatio || '').trim() || '2:3') {
+    case '1:1':
+      return '1024x1024';
+    case '3:2':
+      return '1792x1024';
+    case '9:16':
+      return '720x1280';
+    case '16:9':
+      return '1280x720';
+    case '2:3':
+    default:
+      return '1024x1792';
+  }
+}
+
+async function handleFunctionImagineStart(request, env) {
+  const auth = await verifyFunctionRequest(request, env);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ detail: 'invalid-json' }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return json({ detail: 'payload-must-be-object' }, { status: 400 });
+  }
+
+  const prompt = String(payload.prompt || '').trim();
+  if (!prompt) {
+    return json(
+      {
+        detail: 'prompt-required',
+        message: 'Imagine bridge requires a prompt',
+        code: 'invalid_imagine_payload',
+      },
+      { status: 400 }
+    );
+  }
+
+  const bridge = getImagineBridgeSummary(auth.runtimeConfig.config);
+  if (bridge.configured) {
+    try {
+      const backendUrl = new URL(bridge.backend_url);
+      if (!/^https?:$/i.test(backendUrl.protocol)) {
+        throw new Error('invalid_backend_protocol');
+      }
+      const targetUrl = new URL('/v1/images/generations', backendUrl);
+      const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
+      const forwardHeaders = new Headers({
+        'content-type': 'application/json',
+        accept: 'application/json',
+        'x-grok2api-imagine-bridge': 'backend-forward',
+      });
+      if (backendApiKey) {
+        forwardHeaders.set('authorization', `Bearer ${backendApiKey}`);
+      }
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify({
+          prompt,
+          model: 'grok-imagine-1.0',
+          n: Number(auth.runtimeConfig.config.imagine_fast?.n || 1),
+          size: resolveImagineSize(payload.aspect_ratio),
+          response_format: String(auth.runtimeConfig.config.imagine_fast?.response_format || 'url'),
+          stream: false,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type') || 'application/json';
+      const backendTraceId = response.headers.get('x-trace-id') || '';
+      const retryAfter = response.headers.get('retry-after') || '';
+      const bodyText = await response.text();
+      const responseHeaders = new Headers({
+        'content-type': contentType,
+        'cache-control': 'no-store',
+        'x-grok2api-imagine-bridge': 'backend-forward',
+      });
+      if (backendTraceId) {
+        responseHeaders.set('x-grok2api-backend-trace-id', backendTraceId);
+      }
+      if (retryAfter) {
+        responseHeaders.set('retry-after', retryAfter);
+      }
+      return new Response(bodyText, {
+        status: response.status,
+        headers: responseHeaders,
+      });
+    } catch (error) {
+      return json(
+        {
+          status: 'error',
+          message: 'imagine-bridge-forward-failed',
+          code: 'bridge_forward_failed',
+          detail: String(error && error.message ? error.message : error),
+          bridge,
+        },
+        { status: 502 }
+      );
+    }
+  }
+
+  return json({
+    status: 'accepted',
+    scene: 'imagine',
+    bridge_mode: 'phase-j-non-stream-probe',
+    bridge,
+    submit_supported: true,
+    execution_supported: false,
+    request_echo: {
+      prompt_length: prompt.length,
+      aspect_ratio: payload.aspect_ratio || '2:3',
+      nsfw: payload.nsfw ?? null,
+    },
+  }, {
+    headers: {
+      'x-grok2api-imagine-bridge': 'probe',
     },
   });
 }
@@ -1549,6 +1680,10 @@ export default {
 
     if (url.pathname === '/v1/function/chat/completions' && request.method === 'POST') {
       return handleFunctionChatCompletions(request, env);
+    }
+
+    if (url.pathname === '/v1/function/imagine/start' && request.method === 'POST') {
+      return handleFunctionImagineStart(request, env);
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
