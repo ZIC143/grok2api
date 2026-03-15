@@ -126,6 +126,42 @@ Current bridge mode summary:
 - Video: minimal non-stream bridge loop is complete.
 - Phase K: one round of shared bridge helper / execution-wrapper consolidation is complete.
 
+### Phase 1 Light Smoke / Manual Regression Notes
+
+At the end of Phase 1, the following lightweight checks are recommended:
+
+#### Automated smoke (deployment side)
+
+- The Cloudflare Workers deployment workflow already checks: `/health`, `/ready`, `/meta`, `/config`, and `/config/sections`.
+- If a change touches Worker manifest or bridge runtime metadata, also spot-check `/v1/function/manifest` after deployment.
+
+#### Manual regression (function pages)
+
+1. chat page
+
+- The initial status is correct in `backend-forward-ready` mode.
+- The initial status is correct in `probe-only` mode.
+- Send, retry, and regenerate all show consistent bridge success/failure feedback.
+
+1. imagine page
+
+- The initial status is correct in `backend-forward-ready` mode.
+- The status text is correct in `init-only` / `probe` fallback modes.
+- Probe responses show the accepted-probe hint; backend-forward responses render image results correctly.
+
+1. video page
+
+- The initial status is correct in `backend-forward-ready` mode.
+- The status text is correct in `init-only` / `probe` fallback modes.
+- Probe responses show the accepted-probe hint; backend-forward responses render video results correctly.
+
+#### Recorded in this round
+
+- Completed: initial bridge status text on all three function pages is now driven by shared helpers.
+- Completed: chat bridge error feedback is unified across send / retry / regenerate.
+- Completed: imagine / video probe and backend-forward success states now use shared response-header parsing.
+- Completed: a leftover syntax issue in `cloudflare/worker-entry.js` was fixed so the workspace validates cleanly.
+
 > MySQL example: `mysql+aiomysql://user:password@host:3306/db` (if you provide `mysql://`, it will be converted to `mysql+aiomysql://`).
 
 <br>

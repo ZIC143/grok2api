@@ -126,6 +126,42 @@ docker compose up -d
 - Video：最小 non-stream bridge 闭环已完成。
 - Phase K：共享 bridge helper / 执行包装抽取已完成一轮收敛。
 
+### Phase 1 轻量 smoke / 手工回归记录
+
+当前 Phase 1 收尾时，建议至少完成以下轻量检查：
+
+#### 自动 smoke（部署侧）
+
+- Cloudflare Workers 部署工作流已覆盖：`/health`、`/ready`、`/meta`、`/config`、`/config/sections`。
+- 若本轮修改涉及 Worker manifest / bridge runtime 字段，部署后额外抽查 `/v1/function/manifest` 是否可读。
+
+#### 手工回归（前端 function 页）
+
+1. chat 页
+
+- 在 `backend-forward-ready` 下首屏状态显示正确。
+- 在 `probe-only` 下首屏状态显示正确。
+- 发送、重试、重新生成三条路径都能显示一致的 bridge 成功/失败提示。
+
+1. imagine 页
+
+- 在 `backend-forward-ready` 下首屏状态显示正确。
+- 在 `init-only` / `probe` 回退下状态文案正确。
+- probe 返回时提示探测接受；backend-forward 返回时正确渲染图片结果。
+
+1. video 页
+
+- 在 `backend-forward-ready` 下首屏状态显示正确。
+- 在 `init-only` / `probe` 回退下状态文案正确。
+- probe 返回时提示探测接受；backend-forward 返回时正确渲染视频结果。
+
+#### 本轮记录
+
+- 已完成：前端三页首屏 bridge 状态文案统一改为共享 helper。
+- 已完成：chat 发送 / 重试 / 重新生成三条路径的 bridge 错误提示统一。
+- 已完成：imagine / video 的 probe/backend-forward 成功态统一改为按响应头解析。
+- 已完成：顺手修复 `cloudflare/worker-entry.js` 的遗留语法问题，确保当前工作区校验通过。
+
 > MySQL 示例：`mysql+aiomysql://user:password@host:3306/db`（若填 `mysql://` 会自动转为 `mysql+aiomysql://`）
 
 <br>
