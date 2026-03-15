@@ -355,6 +355,15 @@ function getBridgeBackendTraceId(res) {
   return res.headers.get('x-grok2api-backend-trace-id') || '';
 }
 
+function getBridgeMode(res, headerName) {
+  if (!res || !res.headers || !headerName) return '';
+  return res.headers.get(headerName) || '';
+}
+
+function isBridgeMode(res, headerName, expectedMode) {
+  return getBridgeMode(res, headerName) === expectedMode;
+}
+
 function getBridgeRetryAfter(res) {
   if (!res || !res.headers) return '';
   return res.headers.get('retry-after') || '';
@@ -432,6 +441,8 @@ window.AdminAuth = {
   postFunctionJsonExpectJson,
   postFunctionJsonRaw,
   getBridgeBackendTraceId,
+  getBridgeMode,
+  isBridgeMode,
   getBridgeRetryAfter,
   getBridgeFailureMessage,
   parseBridgeError,

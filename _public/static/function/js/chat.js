@@ -1571,8 +1571,7 @@
   }
 
   function getChatBridgeLabelFromResponse(res) {
-    if (!res || !res.headers) return '';
-    return res.headers.get('x-grok2api-chat-bridge') || '';
+    return window.AdminAuth.getBridgeMode(res, 'x-grok2api-chat-bridge');
   }
 
   function getChatBackendTraceId(res) {

@@ -58,6 +58,10 @@
     return window.AdminAuth.getBridgeBackendTraceId(res);
   }
 
+  function getImagineBridgeLabelFromResponse(res) {
+    return window.AdminAuth.getBridgeMode(res, 'x-grok2api-imagine-bridge');
+  }
+
   function getImagineRetryAfter(res) {
     return window.AdminAuth.getBridgeRetryAfter(res);
   }
@@ -365,6 +369,7 @@
       throw new Error(`${await toImagineBridgeError(res)}|||${getImagineTraceAwareFailureMessage(res)}`);
     }
 
+    const bridgeMode = getImagineBridgeLabelFromResponse(res);
     const data = await res.json();
 
     if (data && data.bridge_mode === 'phase-j-non-stream-probe') {
@@ -378,7 +383,7 @@
       throw new Error(t('imagine.bridgeNoImages'));
     }
 
-    setStatus('connected', t('common.done'));
+    setStatus('connected', bridgeMode === 'backend-forward' ? t('imagine.bridgeBackendReady') : t('common.done'));
     setButtons(false);
     toast(t('imagine.bridgeImagesReady', { count: appended }), 'success');
   }
