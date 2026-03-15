@@ -54,34 +54,11 @@
     return { Authorization: authHeader };
   }
 
-  function getImagineBridgeLabelFromResponse(res) {
-    return window.AdminAuth.getBridgeMode(res, 'x-grok2api-imagine-bridge');
-  }
-
-  function getImagineTraceAwareFailureMessage(res) {
-    return window.AdminAuth.getBridgeFailureMessage(
-      res,
-      'imagine.requestFailedCheck',
-      'imagine.requestFailedCheckTrace',
-      'imagine.requestFailedCheckRetry',
-      'imagine.requestFailedCheckTraceRetry',
-      t
-    );
-  }
-
-  async function toImagineBridgeError(res) {
-    return window.AdminAuth.parseBridgeError(res, t('common.requestFailed'));
-  }
-
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
     const { scene, fieldMap } = parts;
-    imagineBridgeMode = manifest && manifest.runtime && manifest.runtime.imagine_bridge && manifest.runtime.imagine_bridge.mode
-      ? String(manifest.runtime.imagine_bridge.mode)
-      : (scene && scene.capabilities && scene.capabilities.bridge && scene.capabilities.bridge.mode
-        ? String(scene.capabilities.bridge.mode)
-        : 'init-only');
+    imagineBridgeMode = window.AdminAuth.getManifestBridgeMode(manifest, 'imagine_bridge', scene, 'init-only');
 
     const manifestMinBytes = window.SceneAssembly.getBootstrapNumber(parts, 'final_min_bytes');
     if (manifestMinBytes !== null) {
@@ -150,10 +127,9 @@
       },
     });
 
-    if (imagineBridgeMode === 'backend-forward-ready') {
-      setStatus('connected', t('imagine.bridgeBackendReady'));
-    } else if (imagineBridgeMode === 'init-only') {
-      setStatus('connected', t('imagine.bridgeInitOnly'));
+    const readyText = window.AdminAuth.getBridgeReadyStatusMessage('imagine', imagineBridgeMode, t);
+    if (readyText) {
+      setStatus('connected', readyText);
     }
   }
 
@@ -363,11 +339,11 @@
       }
     );
 
-    const isBackendForward = window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-imagine-bridge');
-    const isProbe = window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-imagine-bridge');
-
     if (data && data.bridge_mode === 'phase-j-non-stream-probe') {
-      setStatus('connected', t('imagine.bridgeProbeOnly'));
+      setStatus(
+        'connected',
+        window.AdminAuth.getBridgeResponseStatusMessage('imagine', res, 'x-grok2api-imagine-bridge', t, t('imagine.bridgeProbeOnly'))
+      );
       toast(t('imagine.bridgeProbeAccepted', { ratio }), 'success');
       return;
     }
@@ -377,7 +353,10 @@
       throw new Error(t('imagine.bridgeNoImages'));
     }
 
-    setStatus('connected', isBackendForward ? t('imagine.bridgeBackendReady') : (isProbe ? t('imagine.bridgeProbeOnly') : t('common.done')));
+    setStatus(
+      'connected',
+      window.AdminAuth.getBridgeResponseStatusMessage('imagine', res, 'x-grok2api-imagine-bridge', t, t('common.done'))
+    );
     setButtons(false);
     toast(t('imagine.bridgeImagesReady', { count: appended }), 'success');
   }
@@ -839,9 +818,13 @@
         await startImagineBridge(prompt, ratio, authHeader, nsfwEnabled);
       } catch (e) {
         setStatus('error', t('common.failed'));
-        const parts = String(e && e.message ? e.message : '').split('|||');
-        const displayError = parts[0] || t('common.generationFailed');
-        const toastMessage = parts[1] || parts[0] || t('imagine.requestFailedCheck');
+        const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
+          e,
+          t('common.generationFailed'),
+          t('imagine.requestFailedCheck')
+        );
+        const displayError = bridgeError.display;
+        const toastMessage = bridgeError.toast;
         toast(toastMessage, 'error');
         updateError(displayError);
       } finally {

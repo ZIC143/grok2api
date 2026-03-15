@@ -87,9 +87,7 @@
     if (!parts) return;
 
     const { ui, fieldMap } = parts;
-    chatBridgeMode = manifest && manifest.runtime && manifest.runtime.chat_bridge && manifest.runtime.chat_bridge.mode
-      ? String(manifest.runtime.chat_bridge.mode)
-      : 'unknown';
+    chatBridgeMode = window.AdminAuth.getManifestBridgeMode(manifest, 'chat_bridge', null, 'unknown');
     const { available: availableModels, preferred: preferredModel } = window.SceneAssembly.getBootstrapModelConfig(parts);
     if (availableModels.length) {
       modelList = availableModels.slice();
@@ -150,10 +148,9 @@
     if (promptInput && ui.title) {
       promptInput.placeholder = ui.title;
     }
-    if (chatBridgeMode === 'backend-forward-ready') {
-      setStatus('connected', t('chat.bridgeBackendReady'));
-    } else if (chatBridgeMode === 'probe-only') {
-      setStatus('connected', t('chat.bridgeProbeOnly'));
+    const readyText = window.AdminAuth.getBridgeReadyStatusMessage('chat', chatBridgeMode, t);
+    if (readyText) {
+      setStatus('connected', readyText);
     }
     window.SceneAssembly.applyScenePresentationPlan(parts, {
       meta: {
@@ -1113,6 +1110,7 @@
     const payload = buildPayload();
 
     (async () => {
+      let bridgeRes = null;
       try {
         const { res, data } = await window.AdminAuth.executeBridgeJson(
           CHAT_COMPLETIONS_ENDPOINT,
@@ -1128,11 +1126,15 @@
             translate: t,
           }
         );
+        bridgeRes = res;
         if (
           window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
           window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
         ) {
-          setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
+          setStatus(
+            'connected',
+            window.AdminAuth.getBridgeResponseStatusMessage('chat', res, 'x-grok2api-chat-bridge', t, t('chat.bridgeForwarded'))
+          );
           await handleNonStreamResponse(new Response(JSON.stringify(data), { headers: res.headers }), assistantEntry, sendSessionId);
           return;
         }
@@ -1149,7 +1151,19 @@
         } else {
           updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
           setStatus('error', t('common.failed'));
-          toast(getTraceAwareFailureMessage(res), 'error');
+          const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
+            e,
+            t('chat.requestFailedStatus', { status: 'unknown' }),
+            window.AdminAuth.getBridgeFailureMessage(
+              bridgeRes,
+              'chat.requestFailedCheck',
+              'chat.requestFailedCheckTrace',
+              'chat.requestFailedCheckRetry',
+              'chat.requestFailedCheckTraceRetry',
+              t
+            )
+          );
+          toast(bridgeError.toast, 'error');
         }
       } finally {
         setSendingState(false);
@@ -1578,25 +1592,6 @@
     return btn;
   }
 
-  function getChatBridgeLabelFromResponse(res) {
-    return window.AdminAuth.getBridgeMode(res, 'x-grok2api-chat-bridge');
-  }
-
-  function getTraceAwareFailureMessage(res) {
-    return window.AdminAuth.getBridgeFailureMessage(
-      res,
-      'chat.requestFailedCheck',
-      'chat.requestFailedCheckTrace',
-      'chat.requestFailedCheckRetry',
-      'chat.requestFailedCheckTraceRetry',
-      t
-    );
-  }
-
-  async function toChatBridgeError(res) {
-    return window.AdminAuth.parseBridgeError(res, t('chat.requestFailedStatus', { status: res ? res.status : 'unknown' }));
-  }
-
   async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
     const data = await res.json();
     let content = data && data.choices && data.choices[0] && data.choices[0].message
@@ -1680,6 +1675,7 @@
     abortController = new AbortController();
     const payload = buildPayloadFrom(historySlice);
 
+    let bridgeRes = null;
     try {
       const { res, data } = await window.AdminAuth.executeBridgeJson(
         CHAT_COMPLETIONS_ENDPOINT,
@@ -1695,12 +1691,16 @@
           translate: t,
         }
       );
+      bridgeRes = res;
 
       if (
         window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
         window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
       ) {
-        setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
+        setStatus(
+          'connected',
+          window.AdminAuth.getBridgeResponseStatusMessage('chat', res, 'x-grok2api-chat-bridge', t, t('chat.bridgeForwarded'))
+        );
         await handleNonStreamResponse(new Response(JSON.stringify(data), { headers: res.headers }), assistantEntry, retrySessionId);
         return;
       }
@@ -1710,7 +1710,19 @@
     } catch (e) {
       updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
       setStatus('error', t('common.failed'));
-      toast(getTraceAwareFailureMessage(res), 'error');
+      const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
+        e,
+        t('chat.requestFailedStatus', { status: 'unknown' }),
+        window.AdminAuth.getBridgeFailureMessage(
+          bridgeRes,
+          'chat.requestFailedCheck',
+          'chat.requestFailedCheckTrace',
+          'chat.requestFailedCheckRetry',
+          'chat.requestFailedCheckTraceRetry',
+          t
+        )
+      );
+      toast(bridgeError.toast, 'error');
     } finally {
       setSendingState(false);
       abortController = null;
@@ -1768,6 +1780,7 @@
     abortController = new AbortController();
     const payload = buildPayload();
 
+    let bridgeRes = null;
     try {
       const { res, data } = await window.AdminAuth.executeBridgeJson(
         CHAT_COMPLETIONS_ENDPOINT,
@@ -1783,12 +1796,16 @@
           translate: t,
         }
       );
+      bridgeRes = res;
 
       if (
         window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
         window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
       ) {
-        setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
+        setStatus(
+          'connected',
+          window.AdminAuth.getBridgeResponseStatusMessage('chat', res, 'x-grok2api-chat-bridge', t, t('chat.bridgeForwarded'))
+        );
         await handleNonStreamResponse(new Response(JSON.stringify(data), { headers: res.headers }), assistantEntry, sendSessionId);
         return;
       }
@@ -1810,7 +1827,19 @@
       } else {
         updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
         setStatus('error', t('common.failed'));
-        toast(getTraceAwareFailureMessage(res), 'error');
+        const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
+          e,
+          t('chat.requestFailedStatus', { status: 'unknown' }),
+          window.AdminAuth.getBridgeFailureMessage(
+            bridgeRes,
+            'chat.requestFailedCheck',
+            'chat.requestFailedCheckTrace',
+            'chat.requestFailedCheckRetry',
+            'chat.requestFailedCheckTraceRetry',
+            t
+          )
+        );
+        toast(bridgeError.toast, 'error');
       }
     } finally {
       setSendingState(false);

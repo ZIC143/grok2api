@@ -350,6 +350,16 @@ async function postFunctionJsonRaw(url, payload, options = {}) {
   return postFunctionJson(url, payload, options);
 }
 
+function getManifestBridgeMode(manifest, runtimeKey, scene, fallbackMode = '') {
+  if (manifest && manifest.runtime && manifest.runtime[runtimeKey] && manifest.runtime[runtimeKey].mode) {
+    return String(manifest.runtime[runtimeKey].mode);
+  }
+  if (scene && scene.capabilities && scene.capabilities.bridge && scene.capabilities.bridge.mode) {
+    return String(scene.capabilities.bridge.mode);
+  }
+  return fallbackMode;
+}
+
 function getBridgeBackendTraceId(res) {
   if (!res || !res.headers) return '';
   return res.headers.get('x-grok2api-backend-trace-id') || '';
@@ -418,6 +428,32 @@ async function parseBridgeError(res, fallbackMessage) {
   return fallbackMessage || `Request failed: ${res.status}`;
 }
 
+function splitBridgeErrorMessage(error, fallbackDisplay, fallbackToast) {
+  const parts = String(error && error.message ? error.message : '').split('|||');
+  return {
+    display: parts[0] || fallbackDisplay || fallbackToast || 'Request failed',
+    toast: parts[1] || parts[0] || fallbackToast || fallbackDisplay || 'Request failed',
+  };
+}
+
+function getBridgeReadyStatusMessage(sceneKey, mode, translate) {
+  const tFn = typeof translate === 'function' ? translate : (key) => key;
+  if (mode === 'backend-forward-ready' || mode === 'backend-forward') {
+    return tFn(`${sceneKey}.bridgeBackendReady`);
+  }
+  if (mode === 'probe-only' || mode === 'probe') {
+    return tFn(`${sceneKey}.bridgeProbeOnly`);
+  }
+  if (mode === 'init-only') {
+    return tFn(`${sceneKey}.bridgeInitOnly`);
+  }
+  return '';
+}
+
+function getBridgeResponseStatusMessage(sceneKey, res, headerName, translate, fallbackText = '') {
+  return getBridgeReadyStatusMessage(sceneKey, getBridgeMode(res, headerName), translate) || fallbackText;
+}
+
 async function executeBridgeJson(url, payload, options = {}) {
   const res = await postFunctionJsonRaw(url, payload, options);
   if (!res.ok) {
@@ -474,6 +510,10 @@ window.AdminAuth = {
   getBridgeRetryAfter,
   getBridgeFailureMessage,
   parseBridgeError,
+  splitBridgeErrorMessage,
+  getManifestBridgeMode,
+  getBridgeReadyStatusMessage,
+  getBridgeResponseStatusMessage,
   executeBridgeJson,
   getJson,
   buildAuthHeaders,

@@ -55,11 +55,7 @@
     const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
     if (!parts) return;
     const { ui, fieldMap } = parts;
-    videoBridgeMode = manifest && manifest.runtime && manifest.runtime.video_bridge && manifest.runtime.video_bridge.mode
-      ? String(manifest.runtime.video_bridge.mode)
-      : (parts.scene && parts.scene.capabilities && parts.scene.capabilities.bridge && parts.scene.capabilities.bridge.mode
-        ? String(parts.scene.capabilities.bridge.mode)
-        : 'init-only');
+    videoBridgeMode = window.AdminAuth.getManifestBridgeMode(manifest, 'video_bridge', parts.scene, 'init-only');
 
     const lengthField = fieldMap.get('video_length');
     const imageField = fieldMap.get('image_url');
@@ -147,10 +143,9 @@
         advanced: window.SceneAssembly.resolveFieldContainer(presetSelect),
       },
     });
-    if (videoBridgeMode === 'backend-forward-ready') {
-      setStatus('connected', t('video.bridgeBackendReady'));
-    } else if (videoBridgeMode === 'init-only') {
-      setStatus('connected', t('video.bridgeInitOnly'));
+    const readyText = window.AdminAuth.getBridgeReadyStatusMessage('video', videoBridgeMode, t);
+    if (readyText) {
+      setStatus('connected', readyText);
     }
     updateMeta();
   }
@@ -423,10 +418,6 @@
     return null;
   }
 
-  function getVideoBridgeLabelFromResponse(res) {
-    return window.AdminAuth.getBridgeMode(res, 'x-grok2api-video-bridge');
-  }
-
   function renderVideoBridgeResult(data) {
     if (!data || typeof data !== 'object') return false;
     const url = data.url || '';
@@ -468,7 +459,10 @@
     );
 
     if (data && data.bridge_mode === 'phase-l-non-stream-probe') {
-      setStatus('connected', t('video.bridgeProbeOnly'));
+      setStatus(
+        'connected',
+        window.AdminAuth.getBridgeResponseStatusMessage('video', res, 'x-grok2api-video-bridge', t, t('video.bridgeProbeOnly'))
+      );
       toast(t('video.bridgeProbeAccepted'), 'success');
       return;
     }
@@ -477,7 +471,10 @@
       throw new Error(t('video.bridgeNoVideo'));
     }
 
-    setStatus('connected', getVideoBridgeLabelFromResponse(res) === 'backend-forward' ? t('video.bridgeBackendReady') : t('common.done'));
+    setStatus(
+      'connected',
+      window.AdminAuth.getBridgeResponseStatusMessage('video', res, 'x-grok2api-video-bridge', t, t('common.done'))
+    );
     setButtons(false);
     setIndeterminate(false);
     updateProgress(100);
@@ -626,9 +623,13 @@
       try {
         await startVideoBridge(authHeader);
       } catch (e) {
-        const parts = String(e && e.message ? e.message : '').split('|||');
         setStatus('error', t('common.failed'));
-        toast(parts[1] || parts[0] || t('video.requestFailedCheck'), 'error');
+        const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
+          e,
+          t('common.generationFailed'),
+          t('video.requestFailedCheck')
+        );
+        toast(bridgeError.toast, 'error');
       } finally {
         isRunning = false;
         startBtn.disabled = false;
