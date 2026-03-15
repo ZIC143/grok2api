@@ -132,7 +132,7 @@ function getChatInitConfig(config) {
       attachments: true,
       multi_session: true,
       stream_request_supported: false,
-      worker_bridge_mode: 'init-only',
+      worker_bridge_mode: getChatBridgeSummary(config).mode === 'backend-forward-ready' ? 'backend-forward-ready' : 'probe-only',
     },
   };
 }
