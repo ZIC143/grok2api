@@ -1141,7 +1141,7 @@
         } else {
           updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
           setStatus('error', t('common.failed'));
-          toast(t('chat.requestFailedCheck'), 'error');
+          toast(getTraceAwareFailureMessage(res), 'error');
         }
       } finally {
         setSendingState(false);
@@ -1575,6 +1575,17 @@
     return res.headers.get('x-grok2api-chat-bridge') || '';
   }
 
+  function getChatBackendTraceId(res) {
+    if (!res || !res.headers) return '';
+    return res.headers.get('x-grok2api-backend-trace-id') || '';
+  }
+
+  function getTraceAwareFailureMessage(res) {
+    const traceId = getChatBackendTraceId(res);
+    if (!traceId) return t('chat.requestFailedCheck');
+    return t('chat.requestFailedCheckTrace', { trace: traceId });
+  }
+
   async function toChatBridgeError(res) {
     if (!res) return t('chat.requestFailedStatus', { status: 'unknown' });
     try {
@@ -1706,7 +1717,7 @@
     } catch (e) {
       updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
       setStatus('error', t('common.failed'));
-      toast(t('chat.requestFailedCheck'), 'error');
+      toast(getTraceAwareFailureMessage(res), 'error');
     } finally {
       setSendingState(false);
       abortController = null;
@@ -1801,7 +1812,7 @@
       } else {
         updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
         setStatus('error', t('common.failed'));
-        toast(t('chat.requestFailedCheck'), 'error');
+        toast(getTraceAwareFailureMessage(res), 'error');
       }
     } finally {
       setSendingState(false);
