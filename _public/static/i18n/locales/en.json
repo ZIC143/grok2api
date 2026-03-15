@@ -67,7 +67,8 @@
     "noTokenSelected": "No Token selected",
     "clearCache": "Clear cache",
     "failureDetails": "Failure Details",
-    "retryFailed": "Retry failed items"
+    "retryFailed": "Retry failed items",
+    "requestIdSuffix": " (Request ID: {requestId})"
   },
   "nav": {
     "tokenManage": "Token Mgmt",
@@ -430,6 +431,7 @@
     "bridgeBackendReady": "Bridge backend forwarding is ready",
     "bridgeProbeOnly": "Bridge probe mode, only non-stream echo is supported",
     "bridgeForwarded": "Bridge forwarded to backend",
+    "duplicateSubmissionInFlight": "An identical request is still in progress, please do not resubmit yet",
     "bridgeProbeAccepted": "Bridge probe accepted: model {model}, message count {count}. Probe mode does not run real generation.",
     "clickRetry": "Click to retry",
     "thinking": "Thinking",

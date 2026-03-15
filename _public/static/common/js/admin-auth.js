@@ -365,6 +365,11 @@ function getBridgeBackendTraceId(res) {
   return res.headers.get('x-grok2api-backend-trace-id') || '';
 }
 
+function getBridgeRequestId(res) {
+  if (!res || !res.headers) return '';
+  return res.headers.get('x-grok2api-request-id') || '';
+}
+
 function getBridgeMode(res, headerName) {
   if (!res || !res.headers || !headerName) return '';
   return res.headers.get(headerName) || '';
@@ -387,23 +392,28 @@ function getBridgeRetryAfter(res) {
   return res.headers.get('retry-after') || '';
 }
 
-function getBridgeFailureMessage(res, fallbackKey, traceKey, retryKey, traceRetryKey, translate) {
+function getBridgeFailureMessage(res, fallbackKey, traceKey, retryKey, traceRetryKey, translate, options = {}) {
   const tFn = typeof translate === 'function' ? translate : (key, params) => {
     if (typeof t === 'function') return t(key, params);
     return key;
   };
   const traceId = getBridgeBackendTraceId(res);
   const retryAfter = getBridgeRetryAfter(res);
+  const requestId = getBridgeRequestId(res);
+  const withRequestId = (message) => {
+    if (!message || !requestId || options.includeRequestId === false) return message;
+    return `${message}${tFn('common.requestIdSuffix', { requestId })}`;
+  };
   if (traceId && retryAfter) {
-    return tFn(traceRetryKey, { trace: traceId, retryAfter });
+    return withRequestId(tFn(traceRetryKey, { trace: traceId, retryAfter }));
   }
   if (retryAfter) {
-    return tFn(retryKey, { retryAfter });
+    return withRequestId(tFn(retryKey, { retryAfter }));
   }
   if (traceId) {
-    return tFn(traceKey, { trace: traceId });
+    return withRequestId(tFn(traceKey, { trace: traceId }));
   }
-  return tFn(fallbackKey);
+  return withRequestId(tFn(fallbackKey));
 }
 
 async function parseBridgeError(res, fallbackMessage) {
@@ -488,6 +498,14 @@ function buildAuthHeaders(apiKey) {
   return apiKey ? { 'Authorization': apiKey } : {};
 }
 
+function createRequestId(prefix = 'req') {
+  const safePrefix = String(prefix || 'req').replace(/[^a-zA-Z0-9_-]/g, '') || 'req';
+  if (crypto && typeof crypto.randomUUID === 'function') {
+    return `${safePrefix}-${crypto.randomUUID()}`;
+  }
+  return `${safePrefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 window.AdminAuth = {
   ensureAdminKey,
   ensureFunctionKey,
@@ -503,6 +521,7 @@ window.AdminAuth = {
   postFunctionJsonExpectJson,
   postFunctionJsonRaw,
   getBridgeBackendTraceId,
+  getBridgeRequestId,
   getBridgeMode,
   isBridgeMode,
   isProbeBridgeResponse,
@@ -517,6 +536,7 @@ window.AdminAuth = {
   executeBridgeJson,
   getJson,
   buildAuthHeaders,
+  createRequestId,
   logout,
   functionLogout,
 };

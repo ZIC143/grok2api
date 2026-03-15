@@ -49,6 +49,7 @@
   const DEFAULT_SESSION_TITLES = ['新会话', 'New Session'];
 
   let sessionsData = null;
+  const chatInflightKeys = new Set();
 
   function applyChatFieldSchema(fieldMap) {
     window.SceneAssembly.applyFieldRenderPlan({ fieldMap }, [
@@ -1108,6 +1109,12 @@
 
     abortController = new AbortController();
     const payload = buildPayload();
+    const requestMeta = buildChatBridgeHeadersOrWarn(payload);
+    if (!requestMeta) {
+      setSendingState(false);
+      abortController = null;
+      return;
+    }
 
     (async () => {
       let bridgeRes = null;
@@ -1116,6 +1123,7 @@
           CHAT_COMPLETIONS_ENDPOINT,
           payload,
           {
+            headers: requestMeta.headers,
             onError: async () => {},
             signal: abortController.signal,
             fallbackError: t('chat.requestFailedStatus', { status: 'unknown' }),
@@ -1154,18 +1162,12 @@
           const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
             e,
             t('chat.requestFailedStatus', { status: 'unknown' }),
-            window.AdminAuth.getBridgeFailureMessage(
-              bridgeRes,
-              'chat.requestFailedCheck',
-              'chat.requestFailedCheckTrace',
-              'chat.requestFailedCheckRetry',
-              'chat.requestFailedCheckTraceRetry',
-              t
-            )
+            getChatBridgeFailureToast(bridgeRes)
           );
           toast(bridgeError.toast, 'error');
         }
       } finally {
+        finishChatBridgeRequest(requestMeta.idempotencyKey);
         setSendingState(false);
         abortController = null;
         scrollToBottom();
@@ -1470,6 +1472,67 @@
     return payload;
   }
 
+  function buildChatBridgeHeaders() {
+    return {
+      'x-grok2api-request-id': window.AdminAuth.createRequestId('chat'),
+    };
+  }
+
+  function hashChatIdempotencySource(input) {
+    let hash = 2166136261;
+    const text = String(input || '');
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(16);
+  }
+
+  function buildChatIdempotencyKey(payload) {
+    return `chat-idem-${hashChatIdempotencySource(JSON.stringify(payload || {}))}`;
+  }
+
+  function beginChatBridgeRequest(payload) {
+    const idempotencyKey = buildChatIdempotencyKey(payload);
+    if (chatInflightKeys.has(idempotencyKey)) {
+      return null;
+    }
+    chatInflightKeys.add(idempotencyKey);
+    return {
+      idempotencyKey,
+      headers: {
+        ...buildChatBridgeHeaders(),
+        'x-grok2api-idempotency-key': idempotencyKey,
+      },
+    };
+  }
+
+  function finishChatBridgeRequest(idempotencyKey) {
+    if (!idempotencyKey) return;
+    chatInflightKeys.delete(idempotencyKey);
+  }
+
+  function buildChatBridgeHeadersOrWarn(payload) {
+    const requestMeta = beginChatBridgeRequest(payload);
+    if (requestMeta) {
+      return requestMeta;
+    }
+    toast(t('chat.duplicateSubmissionInFlight'), 'warning');
+    return null;
+  }
+
+  function getChatBridgeFailureToast(res) {
+    return window.AdminAuth.getBridgeFailureMessage(
+      res,
+      'chat.requestFailedCheck',
+      'chat.requestFailedCheckTrace',
+      'chat.requestFailedCheckRetry',
+      'chat.requestFailedCheckTraceRetry',
+      t,
+      { includeRequestId: true }
+    );
+  }
+
   function selectModel(value) {
     modelValue = value;
     if (modelLabel) modelLabel.textContent = value;
@@ -1674,6 +1737,12 @@
 
     abortController = new AbortController();
     const payload = buildPayloadFrom(historySlice);
+    const requestMeta = buildChatBridgeHeadersOrWarn(payload);
+    if (!requestMeta) {
+      setSendingState(false);
+      abortController = null;
+      return;
+    }
 
     let bridgeRes = null;
     try {
@@ -1681,6 +1750,7 @@
         CHAT_COMPLETIONS_ENDPOINT,
         payload,
         {
+          headers: requestMeta.headers,
           onError: async () => {},
           signal: abortController.signal,
           fallbackError: t('chat.requestFailedStatus', { status: 'unknown' }),
@@ -1713,17 +1783,11 @@
       const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
         e,
         t('chat.requestFailedStatus', { status: 'unknown' }),
-        window.AdminAuth.getBridgeFailureMessage(
-          bridgeRes,
-          'chat.requestFailedCheck',
-          'chat.requestFailedCheckTrace',
-          'chat.requestFailedCheckRetry',
-          'chat.requestFailedCheckTraceRetry',
-          t
-        )
+        getChatBridgeFailureToast(bridgeRes)
       );
       toast(bridgeError.toast, 'error');
     } finally {
+      finishChatBridgeRequest(requestMeta.idempotencyKey);
       setSendingState(false);
       abortController = null;
       scrollToBottom();
@@ -1779,6 +1843,12 @@
 
     abortController = new AbortController();
     const payload = buildPayload();
+    const requestMeta = buildChatBridgeHeadersOrWarn(payload);
+    if (!requestMeta) {
+      setSendingState(false);
+      abortController = null;
+      return;
+    }
 
     let bridgeRes = null;
     try {
@@ -1786,6 +1856,7 @@
         CHAT_COMPLETIONS_ENDPOINT,
         payload,
         {
+          headers: requestMeta.headers,
           onError: async () => {},
           signal: abortController.signal,
           fallbackError: t('chat.requestFailedStatus', { status: 'unknown' }),
@@ -1830,18 +1901,12 @@
         const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
           e,
           t('chat.requestFailedStatus', { status: 'unknown' }),
-          window.AdminAuth.getBridgeFailureMessage(
-            bridgeRes,
-            'chat.requestFailedCheck',
-            'chat.requestFailedCheckTrace',
-            'chat.requestFailedCheckRetry',
-            'chat.requestFailedCheckTraceRetry',
-            t
-          )
+          getChatBridgeFailureToast(bridgeRes)
         );
         toast(bridgeError.toast, 'error');
       }
     } finally {
+      finishChatBridgeRequest(requestMeta.idempotencyKey);
       setSendingState(false);
       abortController = null;
       scrollToBottom();

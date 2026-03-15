@@ -67,7 +67,8 @@
     "noTokenSelected": "未选择 Token",
     "clearCache": "清空缓存",
     "failureDetails": "失败详情",
-    "retryFailed": "重试失败项"
+    "retryFailed": "重试失败项",
+    "requestIdSuffix": "（请求ID: {requestId}）"
   },
   "nav": {
     "tokenManage": "Token管理",
@@ -430,6 +431,7 @@
     "bridgeBackendReady": "Bridge 后端转发已就绪",
     "bridgeProbeOnly": "Bridge 探测模式，仅支持非流式回显",
     "bridgeForwarded": "Bridge 已转发到后端",
+    "duplicateSubmissionInFlight": "相同请求仍在处理中，请勿重复提交",
     "bridgeProbeAccepted": "Bridge 探测已接受：模型 {model}，消息数 {count}。当前为探测模式，未执行真实生成。",
     "clickRetry": "点击重试",
     "thinking": "思考中",

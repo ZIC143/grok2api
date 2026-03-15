@@ -22,9 +22,48 @@ function unauthorized(detail) {
   );
 }
 
+function createRequestId(prefix = 'req') {
+  const safePrefix = String(prefix || 'req').replace(/[^a-zA-Z0-9_-]/g, '') || 'req';
+  return `${safePrefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function resolveRequestId(request, prefix = 'req') {
+  const incoming = String(request.headers.get('x-grok2api-request-id') || '').trim();
+  return incoming || createRequestId(prefix);
+}
+
 const CONFIG_KEY = 'grok2api:config:runtime';
 const FLAGS_KEY = 'grok2api:runtime:flags';
 const NOTES_KEY = 'grok2api:runtime:notes';
+const CHAT_IDEMPOTENCY_TTL_MS = 90 * 1000;
+const CHAT_INFLIGHT_REQUESTS = new Map();
+
+function cleanupChatInflightRequests(now = Date.now()) {
+  for (const [key, value] of CHAT_INFLIGHT_REQUESTS.entries()) {
+    if (!value || !value.expiresAt || value.expiresAt <= now) {
+      CHAT_INFLIGHT_REQUESTS.delete(key);
+    }
+  }
+}
+
+function acquireChatInflightRequest(idempotencyKey, requestId) {
+  if (!idempotencyKey) return true;
+  const now = Date.now();
+  cleanupChatInflightRequests(now);
+  if (CHAT_INFLIGHT_REQUESTS.has(idempotencyKey)) {
+    return false;
+  }
+  CHAT_INFLIGHT_REQUESTS.set(idempotencyKey, {
+    requestId,
+    expiresAt: now + CHAT_IDEMPOTENCY_TTL_MS,
+  });
+  return true;
+}
+
+function releaseChatInflightRequest(idempotencyKey) {
+  if (!idempotencyKey) return;
+  CHAT_INFLIGHT_REQUESTS.delete(idempotencyKey);
+}
 
 const MODEL_CATALOG = [
   { id: 'grok-3', owned_by: 'grok2api@cloudflare', mode: 'chat', tier: 'basic', cost: 'low' },
@@ -789,16 +828,18 @@ async function handleFunctionChatCompletions(request, env) {
   if (!auth.ok) {
     return auth.response;
   }
+  const requestId = resolveRequestId(request, 'chat');
+  const idempotencyKey = String(request.headers.get('x-grok2api-idempotency-key') || '').trim();
 
   let payload;
   try {
     payload = await request.json();
   } catch {
-    return json({ detail: 'invalid-json' }, { status: 400 });
+    return json({ detail: 'invalid-json' }, { status: 400, headers: { 'x-grok2api-request-id': requestId } });
   }
 
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return json({ detail: 'payload-must-be-object' }, { status: 400 });
+    return json({ detail: 'payload-must-be-object' }, { status: 400, headers: { 'x-grok2api-request-id': requestId } });
   }
 
   if (!payload.model || !Array.isArray(payload.messages) || payload.messages.length === 0) {
@@ -808,101 +849,165 @@ async function handleFunctionChatCompletions(request, env) {
         message: 'Chat bridge requires model and at least one message',
         code: 'invalid_chat_payload',
       },
-      { status: 400 }
+      { status: 400, headers: { 'x-grok2api-request-id': requestId } }
     );
   }
 
-  const requestedStream = payload.stream !== undefined
-    ? Boolean(payload.stream)
-    : Boolean(auth.runtimeConfig.config.app?.stream);
-  const bridge = getChatBridgeSummary(auth.runtimeConfig.config);
-
-  if (requestedStream) {
+  if (!acquireChatInflightRequest(idempotencyKey, requestId)) {
     return json(
       {
         status: 'error',
-        message: 'streaming-disabled-in-worker-bridge',
-        code: 'stream_not_supported',
+        message: 'duplicate-chat-submission-in-flight',
+        detail: 'An identical chat request is already in progress.',
+        code: 'duplicate_request_inflight',
       },
-      { status: 400 }
+      {
+        status: 409,
+        headers: {
+          'x-grok2api-request-id': requestId,
+          'x-grok2api-idempotency-key': idempotencyKey,
+        },
+      }
     );
   }
 
-  if (bridge.configured) {
-    try {
-      const backendUrl = new URL(bridge.backend_url);
-      if (!/^https?:$/i.test(backendUrl.protocol)) {
-        throw new Error('invalid_backend_protocol');
-      }
-      const targetUrl = new URL('/v1/chat/completions', backendUrl);
-      const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
-      const forwardHeaders = new Headers({
-        'content-type': 'application/json',
-        accept: 'application/json',
-        'x-grok2api-chat-bridge': 'backend-forward',
-      });
-      if (backendApiKey) {
-        forwardHeaders.set('authorization', `Bearer ${backendApiKey}`);
-      }
-      const response = await fetch(targetUrl.toString(), {
-        method: 'POST',
-        headers: forwardHeaders,
-        body: JSON.stringify(payload),
-      });
+  try {
+    const requestedStream = payload.stream !== undefined
+      ? Boolean(payload.stream)
+      : Boolean(auth.runtimeConfig.config.app?.stream);
+    const bridge = getChatBridgeSummary(auth.runtimeConfig.config);
 
-      const contentType = response.headers.get('content-type') || 'application/json';
-      const backendTraceId = response.headers.get('x-trace-id') || '';
-      const retryAfter = response.headers.get('retry-after') || '';
-      const bodyText = await response.text();
-      const responseHeaders = new Headers({
-        'content-type': contentType,
-        'cache-control': 'no-store',
-        'x-grok2api-chat-bridge': 'backend-forward',
-      });
-      if (backendTraceId) {
-        responseHeaders.set('x-grok2api-backend-trace-id', backendTraceId);
-      }
-      if (retryAfter) {
-        responseHeaders.set('retry-after', retryAfter);
-      }
-      return new Response(bodyText, {
-        status: response.status,
-        headers: responseHeaders,
-      });
-    } catch (error) {
+    if (requestedStream) {
       return json(
         {
           status: 'error',
-          message: 'chat-bridge-forward-failed',
-          code: 'bridge_forward_failed',
-          detail: String(error && error.message ? error.message : error),
-          bridge,
+          message: 'streaming-disabled-in-worker-bridge',
+          code: 'stream_not_supported',
         },
-        { status: 502 }
+        { status: 400, headers: { 'x-grok2api-request-id': requestId } }
       );
     }
-  }
 
-  return json({
-    status: 'accepted',
-    scene: 'chat',
-    bridge_mode: 'phase-i-non-stream-probe',
-    bridge,
-    submit_supported: true,
-    execution_supported: true,
-    streaming_supported: false,
-    request_echo: {
-      model: payload.model || null,
-      message_count: Array.isArray(payload.messages) ? payload.messages.length : 0,
-      reasoning_effort: payload.reasoning_effort || null,
-      temperature: payload.temperature ?? null,
-      top_p: payload.top_p ?? null,
-    },
-  }, {
-    headers: {
-      'x-grok2api-chat-bridge': 'probe',
-    },
-  });
+    if (bridge.configured) {
+      const timeoutSeconds = Number(auth.runtimeConfig.config.chat?.timeout || 60);
+      const timeoutMs = Number.isFinite(timeoutSeconds) && timeoutSeconds > 0 ? timeoutSeconds * 1000 : 60000;
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const backendUrl = new URL(bridge.backend_url);
+        if (!/^https?:$/i.test(backendUrl.protocol)) {
+          throw new Error('invalid_backend_protocol');
+        }
+        const targetUrl = new URL('/v1/chat/completions', backendUrl);
+        const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
+        const forwardHeaders = new Headers({
+          'content-type': 'application/json',
+          accept: 'application/json',
+          'x-grok2api-chat-bridge': 'backend-forward',
+          'x-grok2api-request-id': requestId,
+          'x-grok2api-idempotency-key': idempotencyKey,
+        });
+        if (backendApiKey) {
+          forwardHeaders.set('authorization', `Bearer ${backendApiKey}`);
+        }
+        forwardHeaders.set('x-request-id', requestId);
+        const response = await fetch(targetUrl.toString(), {
+          method: 'POST',
+          headers: forwardHeaders,
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        const contentType = response.headers.get('content-type') || 'application/json';
+        const backendTraceId = response.headers.get('x-trace-id') || '';
+        const retryAfter = response.headers.get('retry-after') || '';
+        const bodyText = await response.text();
+        const responseHeaders = new Headers({
+          'content-type': contentType,
+          'cache-control': 'no-store',
+          'x-grok2api-chat-bridge': 'backend-forward',
+          'x-grok2api-request-id': requestId,
+        });
+        if (idempotencyKey) {
+          responseHeaders.set('x-grok2api-idempotency-key', idempotencyKey);
+        }
+        if (backendTraceId) {
+          responseHeaders.set('x-grok2api-backend-trace-id', backendTraceId);
+        }
+        if (retryAfter) {
+          responseHeaders.set('retry-after', retryAfter);
+        }
+        return new Response(bodyText, {
+          status: response.status,
+          headers: responseHeaders,
+        });
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          return json(
+            {
+              status: 'error',
+              message: 'chat-bridge-forward-timeout',
+              code: 'bridge_timeout',
+              detail: `chat backend did not respond within ${Math.round(timeoutMs / 1000)}s`,
+              bridge,
+            },
+            {
+              status: 504,
+              headers: {
+                'x-grok2api-chat-bridge': 'backend-forward',
+                'x-grok2api-request-id': requestId,
+                'x-grok2api-idempotency-key': idempotencyKey,
+              },
+            }
+          );
+        }
+        return json(
+          {
+            status: 'error',
+            message: 'chat-bridge-forward-failed',
+            code: 'bridge_forward_failed',
+            detail: String(error && error.message ? error.message : error),
+            bridge,
+          },
+          {
+            status: 502,
+            headers: {
+              'x-grok2api-chat-bridge': 'backend-forward',
+              'x-grok2api-request-id': requestId,
+              'x-grok2api-idempotency-key': idempotencyKey,
+            },
+          }
+        );
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    }
+
+    return json({
+      status: 'accepted',
+      scene: 'chat',
+      bridge_mode: 'phase-i-non-stream-probe',
+      bridge,
+      submit_supported: true,
+      execution_supported: true,
+      streaming_supported: false,
+      request_echo: {
+        model: payload.model || null,
+        message_count: Array.isArray(payload.messages) ? payload.messages.length : 0,
+        reasoning_effort: payload.reasoning_effort || null,
+        temperature: payload.temperature ?? null,
+        top_p: payload.top_p ?? null,
+      },
+    }, {
+      headers: {
+        'x-grok2api-chat-bridge': 'probe',
+        'x-grok2api-request-id': requestId,
+        'x-grok2api-idempotency-key': idempotencyKey,
+      },
+    });
+  } finally {
+    releaseChatInflightRequest(idempotencyKey);
+  }
 }
 
 function resolveImagineSize(aspectRatio) {
