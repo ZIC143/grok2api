@@ -427,6 +427,7 @@
     "bridgeBackendReady": "Bridge backend forwarding is ready",
     "bridgeProbeOnly": "Bridge probe mode, only non-stream echo is supported",
     "bridgeForwarded": "Bridge forwarded to backend",
+    "bridgeProbeAccepted": "Bridge probe accepted: model {model}, message count {count}. Probe mode does not run real generation.",
     "clickRetry": "Click to retry",
     "thinking": "Thinking",
     "thinkingSec": "Thinking {sec}s",

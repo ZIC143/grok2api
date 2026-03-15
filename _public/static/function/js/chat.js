@@ -1122,9 +1122,9 @@
             signal: abortController.signal,
           }
         );
-        if (!res.ok) throw new Error(t('chat.requestFailedStatus', { status: res.status }));
-        if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
-          setStatus('connected', t('chat.bridgeForwarded'));
+        if (!res.ok) throw new Error(await toChatBridgeError(res));
+        if (getChatBridgeLabelFromResponse(res) === 'backend-forward' || getChatBridgeLabelFromResponse(res) === 'probe') {
+          setStatus('connected', getChatBridgeLabelFromResponse(res) === 'probe' ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
           await handleNonStreamResponse(res, assistantEntry, sendSessionId);
           return;
         }
@@ -1592,9 +1592,16 @@
 
   async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
     const data = await res.json();
-    const content = data && data.choices && data.choices[0] && data.choices[0].message
+    let content = data && data.choices && data.choices[0] && data.choices[0].message
       ? data.choices[0].message.content || ''
       : '';
+    if (!content && data && data.status === 'accepted' && data.bridge_mode === 'phase-i-non-stream-probe') {
+      const echo = data.request_echo || {};
+      content = t('chat.bridgeProbeAccepted', {
+        model: echo.model || '-',
+        count: echo.message_count || 0,
+      });
+    }
     updateMessage(assistantEntry, content, true);
     assistantEntry.committed = true;
     commitToSession(targetSessionId, content);
@@ -1680,8 +1687,8 @@
         throw new Error(await toChatBridgeError(res));
       }
 
-      if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
-        setStatus('connected', t('chat.bridgeForwarded'));
+      if (getChatBridgeLabelFromResponse(res) === 'backend-forward' || getChatBridgeLabelFromResponse(res) === 'probe') {
+        setStatus('connected', getChatBridgeLabelFromResponse(res) === 'probe' ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
         await handleNonStreamResponse(res, assistantEntry, retrySessionId);
         return;
       }
@@ -1763,8 +1770,8 @@
         throw new Error(await toChatBridgeError(res));
       }
 
-      if (getChatBridgeLabelFromResponse(res) === 'backend-forward') {
-        setStatus('connected', t('chat.bridgeForwarded'));
+      if (getChatBridgeLabelFromResponse(res) === 'backend-forward' || getChatBridgeLabelFromResponse(res) === 'probe') {
+        setStatus('connected', getChatBridgeLabelFromResponse(res) === 'probe' ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
         await handleNonStreamResponse(res, assistantEntry, sendSessionId);
         return;
       }
