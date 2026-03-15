@@ -427,6 +427,21 @@
     return window.AdminAuth.getBridgeMode(res, 'x-grok2api-video-bridge');
   }
 
+  function getVideoTraceAwareFailureMessage(res) {
+    return window.AdminAuth.getBridgeFailureMessage(
+      res,
+      'video.requestFailedCheck',
+      'video.requestFailedCheckTrace',
+      'video.requestFailedCheckRetry',
+      'video.requestFailedCheckTraceRetry',
+      t
+    );
+  }
+
+  async function toVideoBridgeError(res) {
+    return window.AdminAuth.parseBridgeError(res, t('common.requestFailed'));
+  }
+
   function renderVideoBridgeResult(data) {
     if (!data || typeof data !== 'object') return false;
     const url = data.url || '';
@@ -462,15 +477,8 @@
     );
 
     if (!res.ok) {
-      const errorText = await window.AdminAuth.parseBridgeError(res, t('common.requestFailed'));
-      const toastText = window.AdminAuth.getBridgeFailureMessage(
-        res,
-        'video.requestFailedCheck',
-        'video.requestFailedCheckTrace',
-        'video.requestFailedCheckRetry',
-        'video.requestFailedCheckTraceRetry',
-        t
-      );
+      const errorText = await toVideoBridgeError(res);
+      const toastText = getVideoTraceAwareFailureMessage(res);
       throw new Error(`${errorText}|||${toastText}`);
     }
 
