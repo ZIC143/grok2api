@@ -823,9 +823,15 @@ async function handleFunctionChatCompletions(request, env) {
         throw new Error('invalid_backend_protocol');
       }
       const targetUrl = new URL('/chat/completions', backendUrl);
+      const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
       const forwardHeaders = new Headers({
         'content-type': 'application/json',
+        accept: 'application/json',
+        'x-grok2api-chat-bridge': 'backend-forward',
       });
+      if (backendApiKey) {
+        forwardHeaders.set('authorization', `Bearer ${backendApiKey}`);
+      }
       const response = await fetch(targetUrl.toString(), {
         method: 'POST',
         headers: forwardHeaders,
