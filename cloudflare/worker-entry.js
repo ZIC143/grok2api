@@ -131,7 +131,7 @@ function getChatInitConfig(config) {
     capabilities: {
       attachments: true,
       multi_session: true,
-      stream_request_supported: false,
+      stream_request_supported: true,
       worker_bridge_mode: getChatBridgeSummary(config).mode === 'backend-forward-ready' ? 'backend-forward-ready' : 'probe-only',
     },
   };
