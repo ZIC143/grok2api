@@ -364,6 +364,14 @@ function isBridgeMode(res, headerName, expectedMode) {
   return getBridgeMode(res, headerName) === expectedMode;
 }
 
+function isProbeBridgeResponse(res, headerName) {
+  return isBridgeMode(res, headerName, 'probe');
+}
+
+function isBackendForwardBridgeResponse(res, headerName) {
+  return isBridgeMode(res, headerName, 'backend-forward');
+}
+
 function getBridgeRetryAfter(res) {
   if (!res || !res.headers) return '';
   return res.headers.get('retry-after') || '';
@@ -443,6 +451,8 @@ window.AdminAuth = {
   getBridgeBackendTraceId,
   getBridgeMode,
   isBridgeMode,
+  isProbeBridgeResponse,
+  isBackendForwardBridgeResponse,
   getBridgeRetryAfter,
   getBridgeFailureMessage,
   parseBridgeError,

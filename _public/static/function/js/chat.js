@@ -1123,8 +1123,11 @@
           }
         );
         if (!res.ok) throw new Error(await toChatBridgeError(res));
-        if (getChatBridgeLabelFromResponse(res) === 'backend-forward' || getChatBridgeLabelFromResponse(res) === 'probe') {
-          setStatus('connected', getChatBridgeLabelFromResponse(res) === 'probe' ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
+        if (
+          window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
+          window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
+        ) {
+          setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
           await handleNonStreamResponse(res, assistantEntry, sendSessionId);
           return;
         }
@@ -1694,8 +1697,11 @@
         throw new Error(await toChatBridgeError(res));
       }
 
-      if (getChatBridgeLabelFromResponse(res) === 'backend-forward' || getChatBridgeLabelFromResponse(res) === 'probe') {
-        setStatus('connected', getChatBridgeLabelFromResponse(res) === 'probe' ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
+      if (
+        window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
+        window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
+      ) {
+        setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
         await handleNonStreamResponse(res, assistantEntry, retrySessionId);
         return;
       }
@@ -1777,8 +1783,11 @@
         throw new Error(await toChatBridgeError(res));
       }
 
-      if (getChatBridgeLabelFromResponse(res) === 'backend-forward' || getChatBridgeLabelFromResponse(res) === 'probe') {
-        setStatus('connected', getChatBridgeLabelFromResponse(res) === 'probe' ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
+      if (
+        window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
+        window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
+      ) {
+        setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
         await handleNonStreamResponse(res, assistantEntry, sendSessionId);
         return;
       }

@@ -369,7 +369,8 @@
       throw new Error(`${await toImagineBridgeError(res)}|||${getImagineTraceAwareFailureMessage(res)}`);
     }
 
-    const bridgeMode = getImagineBridgeLabelFromResponse(res);
+    const isBackendForward = window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-imagine-bridge');
+    const isProbe = window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-imagine-bridge');
     const data = await res.json();
 
     if (data && data.bridge_mode === 'phase-j-non-stream-probe') {
@@ -383,7 +384,7 @@
       throw new Error(t('imagine.bridgeNoImages'));
     }
 
-    setStatus('connected', bridgeMode === 'backend-forward' ? t('imagine.bridgeBackendReady') : t('common.done'));
+    setStatus('connected', isBackendForward ? t('imagine.bridgeBackendReady') : (isProbe ? t('imagine.bridgeProbeOnly') : t('common.done')));
     setButtons(false);
     toast(t('imagine.bridgeImagesReady', { count: appended }), 'success');
   }
