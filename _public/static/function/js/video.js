@@ -46,6 +46,11 @@
   let defaultReasoningEffort = 'low';
   let videoBridgeMode = 'init-only';
 
+  function buildAuthHeaders(authHeader) {
+    if (!authHeader) return {};
+    return { Authorization: authHeader };
+  }
+
   function applyVideoManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
     if (!parts) return;
@@ -418,6 +423,75 @@
     return null;
   }
 
+  function getVideoBridgeLabelFromResponse(res) {
+    return window.AdminAuth.getBridgeMode(res, 'x-grok2api-video-bridge');
+  }
+
+  function renderVideoBridgeResult(data) {
+    if (!data || typeof data !== 'object') return false;
+    const url = data.url || '';
+    if (!url) return false;
+    renderVideoFromUrl(url);
+    return true;
+  }
+
+  async function startVideoBridge(authHeader) {
+    const prompt = promptInput ? promptInput.value.trim() : '';
+    const rawUrl = imageUrlInput ? imageUrlInput.value.trim() : '';
+    if (fileDataUrl && rawUrl) {
+      toast(t('video.referenceConflict'), 'error');
+      throw new Error(t('video.referenceConflict'));
+    }
+    const imageUrl = fileDataUrl || rawUrl;
+
+    const res = await window.AdminAuth.postFunctionJsonRaw(
+      '/v1/function/video/start',
+      {
+        prompt,
+        image_url: imageUrl || null,
+        reasoning_effort: defaultReasoningEffort,
+        aspect_ratio: ratioSelect ? ratioSelect.value : '3:2',
+        video_length: lengthSelect ? parseInt(lengthSelect.value, 10) : 6,
+        resolution_name: resolutionSelect ? resolutionSelect.value : '480p',
+        preset: presetSelect ? presetSelect.value : 'normal'
+      },
+      {
+        headers: buildAuthHeaders(authHeader),
+        onError: async () => {},
+      }
+    );
+
+    if (!res.ok) {
+      const errorText = await window.AdminAuth.parseBridgeError(res, t('common.requestFailed'));
+      const toastText = window.AdminAuth.getBridgeFailureMessage(
+        res,
+        'video.requestFailedCheck',
+        'video.requestFailedCheckTrace',
+        'video.requestFailedCheckRetry',
+        'video.requestFailedCheckTraceRetry',
+        t
+      );
+      throw new Error(`${errorText}|||${toastText}`);
+    }
+
+    const data = await res.json();
+    if (data && data.bridge_mode === 'phase-l-non-stream-probe') {
+      setStatus('connected', t('video.bridgeProbeOnly'));
+      toast(t('video.bridgeProbeAccepted'), 'success');
+      return;
+    }
+
+    if (!renderVideoBridgeResult(data)) {
+      throw new Error(t('video.bridgeNoVideo'));
+    }
+
+    setStatus('connected', getVideoBridgeLabelFromResponse(res) === 'backend-forward' ? t('video.bridgeBackendReady') : t('common.done'));
+    setButtons(false);
+    setIndeterminate(false);
+    updateProgress(100);
+    toast(t('video.bridgeVideoReady'), 'success');
+  }
+
   function renderVideoFromHtml(html) {
     const container = ensurePreviewSlot();
     if (!container) return;
@@ -549,6 +623,27 @@
       },
     });
     if (authHeader === null) return;
+
+    if (videoBridgeMode === 'backend-forward-ready') {
+      isRunning = true;
+      startBtn.disabled = true;
+      updateMeta();
+      resetOutput(true);
+      initPreviewSlot();
+      setStatus('connecting', t('common.connecting'));
+      try {
+        await startVideoBridge(authHeader);
+      } catch (e) {
+        const parts = String(e && e.message ? e.message : '').split('|||');
+        setStatus('error', t('common.failed'));
+        toast(parts[1] || parts[0] || t('video.requestFailedCheck'), 'error');
+      } finally {
+        isRunning = false;
+        startBtn.disabled = false;
+        stopElapsedTimer();
+      }
+      return;
+    }
 
     isRunning = true;
     startBtn.disabled = true;
