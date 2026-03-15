@@ -373,7 +373,7 @@ function getImagineFormSchema(config) {
     scene: 'imagine',
     endpoint: '/v1/function/imagine/start',
     method: 'POST',
-    submit_supported: false,
+    submit_supported: true,
     examples: {
       minimal: {
         prompt: '一只戴着宇航头盔的橘猫',
