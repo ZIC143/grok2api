@@ -712,6 +712,28 @@ body {
   opacity: 0.5;
 }
 
+.cancel-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(185, 28, 28, 0.18);
+  background: rgba(185, 28, 28, 0.08);
+  color: #b91c1c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background: rgba(185, 28, 28, 0.12);
+  border-color: rgba(185, 28, 28, 0.28);
+}
+
+.cancel-btn.hidden {
+  display: none;
+}
+
 .popover {
   position: relative;
 }

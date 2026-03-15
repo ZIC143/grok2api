@@ -11,6 +11,7 @@
   const systemInput = document.getElementById('systemInput');
   const promptInput = document.getElementById('promptInput');
   const sendBtn = document.getElementById('sendBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
   const settingsToggle = document.getElementById('settingsToggle');
   const settingsPanel = document.getElementById('settingsPanel');
   const chatLog = document.getElementById('chatLog');
@@ -550,6 +551,13 @@
   function setSendingState(sending) {
     isSending = sending;
     if (sendBtn) sendBtn.disabled = sending;
+    if (sendBtn) sendBtn.classList.toggle('hidden', sending);
+    if (cancelBtn) cancelBtn.classList.toggle('hidden', !sending);
+  }
+
+  function setChatSendingStatus(stageKey) {
+    if (!stageKey) return;
+    setStatus('connecting', t(stageKey));
   }
 
   function updateRangeValues() {
@@ -1105,7 +1113,7 @@
     const sendSessionId = sessionsData.activeId;
     const assistantEntry = createMessage('assistant', '');
     setSendingState(true);
-    setStatus('connecting', t('common.sending'));
+    setChatSendingStatus('chat.forwardingRequest');
 
     abortController = new AbortController();
     const payload = buildPayload();
@@ -1135,6 +1143,7 @@
           }
         );
         bridgeRes = res;
+        setChatSendingStatus('chat.waitingFirstResponse');
         if (
           window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
           window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
@@ -1150,19 +1159,14 @@
         setStatus('connected', t('common.done'));
       } catch (e) {
         if (e && e.name === 'AbortError') {
-          updateMessage(assistantEntry, assistantEntry.raw || t('common.stopped'), true);
-          setStatus('error', t('common.stopped'));
-          if (!assistantEntry.committed) {
-            assistantEntry.committed = true;
-            commitToSession(sendSessionId, assistantEntry.raw || '');
-          }
+          handleChatAbort(assistantEntry, sendSessionId);
         } else {
           updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
           setStatus('error', t('common.failed'));
           const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
             e,
             t('chat.requestFailedStatus', { status: 'unknown' }),
-            getChatBridgeFailureToast(bridgeRes)
+            getFriendlyChatFailureMessage(e, bridgeRes)
           );
           toast(bridgeError.toast, 'error');
         }
@@ -1533,6 +1537,27 @@
     );
   }
 
+  function getFriendlyChatFailureMessage(error, res) {
+    const message = String(error && error.message ? error.message : '');
+    if (message.includes('duplicate_request_inflight') || message.includes('duplicate-chat-submission-in-flight')) {
+      return t('chat.duplicateSubmissionInFlight');
+    }
+    if (message.includes('bridge_timeout') || message.includes('chat-bridge-forward-timeout')) {
+      return t('chat.bridgeTimeout');
+    }
+    return getChatBridgeFailureToast(res);
+  }
+
+  function handleChatAbort(assistantEntry, sessionId) {
+    updateMessage(assistantEntry, assistantEntry.raw || t('chat.requestCancelled'), true);
+    setStatus('error', t('chat.requestCancelledStatus'));
+    toast(t('chat.requestCancelledToast'), 'warning');
+    if (!assistantEntry.committed) {
+      assistantEntry.committed = true;
+      commitToSession(sessionId, assistantEntry.raw || t('chat.requestCancelled'));
+    }
+  }
+
   function selectModel(value) {
     modelValue = value;
     if (modelLabel) modelLabel.textContent = value;
@@ -1733,7 +1758,7 @@
     const retrySessionId = sessionsData.activeId;
     const assistantEntry = createMessage('assistant', '');
     setSendingState(true);
-    setStatus('connecting', t('common.sending'));
+    setChatSendingStatus('chat.forwardingRequest');
 
     abortController = new AbortController();
     const payload = buildPayloadFrom(historySlice);
@@ -1762,6 +1787,7 @@
         }
       );
       bridgeRes = res;
+      setChatSendingStatus('chat.waitingFirstResponse');
 
       if (
         window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
@@ -1783,7 +1809,7 @@
       const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
         e,
         t('chat.requestFailedStatus', { status: 'unknown' }),
-        getChatBridgeFailureToast(bridgeRes)
+        getFriendlyChatFailureMessage(e, bridgeRes)
       );
       toast(bridgeError.toast, 'error');
     } finally {
@@ -1839,7 +1865,7 @@
     const sendSessionId = sessionsData.activeId;
     const assistantEntry = createMessage('assistant', '');
     setSendingState(true);
-    setStatus('connecting', t('common.sending'));
+    setChatSendingStatus('chat.forwardingRequest');
 
     abortController = new AbortController();
     const payload = buildPayload();
@@ -1868,6 +1894,7 @@
         }
       );
       bridgeRes = res;
+      setChatSendingStatus('chat.waitingFirstResponse');
 
       if (
         window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
@@ -1885,15 +1912,10 @@
       setStatus('connected', t('common.done'));
     } catch (e) {
       if (e && e.name === 'AbortError') {
-        updateMessage(assistantEntry, assistantEntry.raw || t('common.stopped'), true);
+        handleChatAbort(assistantEntry, sendSessionId);
         if (assistantEntry.hasThink) {
           const elapsed = assistantEntry.thinkElapsed || Math.max(1, Math.round((Date.now() - assistantEntry.startedAt) / 1000));
           updateThinkSummary(assistantEntry, elapsed);
-        }
-        setStatus('error', t('common.stopped'));
-        if (!assistantEntry.committed) {
-          assistantEntry.committed = true;
-          commitToSession(sendSessionId, assistantEntry.raw || '');
         }
       } else {
         updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
@@ -1901,7 +1923,7 @@
         const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
           e,
           t('chat.requestFailedStatus', { status: 'unknown' }),
-          getChatBridgeFailureToast(bridgeRes)
+          getFriendlyChatFailureMessage(e, bridgeRes)
         );
         toast(bridgeError.toast, 'error');
       }
@@ -2043,6 +2065,12 @@
       });
     }
     if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        if (!isSending || !abortController) return;
+        abortController.abort();
+      });
+    }
     if (settingsToggle) {
       settingsToggle.addEventListener('click', (event) => {
         event.stopPropagation();
