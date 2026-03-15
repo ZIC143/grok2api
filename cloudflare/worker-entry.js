@@ -822,7 +822,7 @@ async function handleFunctionChatCompletions(request, env) {
       if (!/^https?:$/i.test(backendUrl.protocol)) {
         throw new Error('invalid_backend_protocol');
       }
-      const targetUrl = new URL('/chat/completions', backendUrl);
+      const targetUrl = new URL('/v1/chat/completions', backendUrl);
       const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
       const forwardHeaders = new Headers({
         'content-type': 'application/json',
