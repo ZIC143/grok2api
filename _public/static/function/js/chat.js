@@ -1114,21 +1114,26 @@
 
     (async () => {
       try {
-        const res = await window.AdminAuth.postFunctionJsonRaw(
+        const { res, data } = await window.AdminAuth.executeBridgeJson(
           CHAT_COMPLETIONS_ENDPOINT,
           payload,
           {
             onError: async () => {},
             signal: abortController.signal,
+            fallbackError: t('chat.requestFailedStatus', { status: 'unknown' }),
+            fallbackToastKey: 'chat.requestFailedCheck',
+            traceKey: 'chat.requestFailedCheckTrace',
+            retryKey: 'chat.requestFailedCheckRetry',
+            traceRetryKey: 'chat.requestFailedCheckTraceRetry',
+            translate: t,
           }
         );
-        if (!res.ok) throw new Error(await toChatBridgeError(res));
         if (
           window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
           window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
         ) {
           setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
-          await handleNonStreamResponse(res, assistantEntry, sendSessionId);
+          await handleNonStreamResponse(new Response(JSON.stringify(data), { headers: res.headers }), assistantEntry, sendSessionId);
           return;
         }
         await handleStream(res, assistantEntry, sendSessionId);
@@ -1684,25 +1689,27 @@
     const payload = buildPayloadFrom(historySlice);
 
     try {
-      const res = await window.AdminAuth.postFunctionJsonRaw(
+      const { res, data } = await window.AdminAuth.executeBridgeJson(
         CHAT_COMPLETIONS_ENDPOINT,
         payload,
         {
           onError: async () => {},
           signal: abortController.signal,
+          fallbackError: t('chat.requestFailedStatus', { status: 'unknown' }),
+          fallbackToastKey: 'chat.requestFailedCheck',
+          traceKey: 'chat.requestFailedCheckTrace',
+          retryKey: 'chat.requestFailedCheckRetry',
+          traceRetryKey: 'chat.requestFailedCheckTraceRetry',
+          translate: t,
         }
       );
-
-      if (!res.ok) {
-        throw new Error(await toChatBridgeError(res));
-      }
 
       if (
         window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
         window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
       ) {
         setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
-        await handleNonStreamResponse(res, assistantEntry, retrySessionId);
+        await handleNonStreamResponse(new Response(JSON.stringify(data), { headers: res.headers }), assistantEntry, retrySessionId);
         return;
       }
 
@@ -1770,25 +1777,27 @@
     const payload = buildPayload();
 
     try {
-      const res = await window.AdminAuth.postFunctionJsonRaw(
+      const { res, data } = await window.AdminAuth.executeBridgeJson(
         CHAT_COMPLETIONS_ENDPOINT,
         payload,
         {
           onError: async () => {},
           signal: abortController.signal,
+          fallbackError: t('chat.requestFailedStatus', { status: 'unknown' }),
+          fallbackToastKey: 'chat.requestFailedCheck',
+          traceKey: 'chat.requestFailedCheckTrace',
+          retryKey: 'chat.requestFailedCheckRetry',
+          traceRetryKey: 'chat.requestFailedCheckTraceRetry',
+          translate: t,
         }
       );
-
-      if (!res.ok) {
-        throw new Error(await toChatBridgeError(res));
-      }
 
       if (
         window.AdminAuth.isBackendForwardBridgeResponse(res, 'x-grok2api-chat-bridge') ||
         window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge')
       ) {
         setStatus('connected', window.AdminAuth.isProbeBridgeResponse(res, 'x-grok2api-chat-bridge') ? t('chat.bridgeProbeOnly') : t('chat.bridgeForwarded'));
-        await handleNonStreamResponse(res, assistantEntry, sendSessionId);
+        await handleNonStreamResponse(new Response(JSON.stringify(data), { headers: res.headers }), assistantEntry, sendSessionId);
         return;
       }
 
