@@ -551,6 +551,8 @@
     "superResolution": "超分辨率",
     "superResolutionInProgress": "超分辨率中",
     "alreadyGenerating": "已在生成中",
+    "bridgeBackendReady": "Video Bridge 后端转发已就绪",
+    "bridgeInitOnly": "Video 当前仅提供初始化配置，执行桥接尚未启用",
     "referenceConflict": "参考图只能选择其一：URL/Base64 或 本地上传",
     "downloadFailed": "下载失败，请检查视频链接是否可访问",
     "sec6": "6 秒",

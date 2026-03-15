@@ -551,6 +551,8 @@
     "superResolution": "Super Resolution",
     "superResolutionInProgress": "Super resolution in progress",
     "alreadyGenerating": "Already generating",
+    "bridgeBackendReady": "Video bridge backend forwarding is ready",
+    "bridgeInitOnly": "Video currently exposes init-only config; execution bridge is not enabled yet",
     "referenceConflict": "Reference image: choose either URL/Base64 or file upload",
     "downloadFailed": "Download failed, please check if the video link is accessible",
     "sec6": "6s",

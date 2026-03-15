@@ -44,11 +44,17 @@
   let currentPreviewItem = null;
   let previewCount = 0;
   let defaultReasoningEffort = 'low';
+  let videoBridgeMode = 'init-only';
 
   function applyVideoManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'video');
     if (!parts) return;
     const { ui, fieldMap } = parts;
+    videoBridgeMode = manifest && manifest.runtime && manifest.runtime.video_bridge && manifest.runtime.video_bridge.mode
+      ? String(manifest.runtime.video_bridge.mode)
+      : (parts.scene && parts.scene.capabilities && parts.scene.capabilities.bridge && parts.scene.capabilities.bridge.mode
+        ? String(parts.scene.capabilities.bridge.mode)
+        : 'init-only');
 
     const lengthField = fieldMap.get('video_length');
     const imageField = fieldMap.get('image_url');
@@ -136,6 +142,11 @@
         advanced: window.SceneAssembly.resolveFieldContainer(presetSelect),
       },
     });
+    if (videoBridgeMode === 'backend-forward-ready') {
+      setStatus('connected', t('video.bridgeBackendReady'));
+    } else if (videoBridgeMode === 'init-only') {
+      setStatus('connected', t('video.bridgeInitOnly'));
+    }
     updateMeta();
   }
 
