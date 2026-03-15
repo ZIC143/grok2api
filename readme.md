@@ -111,6 +111,12 @@ docker compose up -d
 - 当未配置对应地址时，chat / imagine / video 会退回到 `probe` 或 `init-only` 模式。
 - bridge 转发到后端时，会自动尝试复用 `app.api_key` 作为后端 Bearer 鉴权。
 
+当前 bridge 模式说明：
+
+- `chat`：已支持 function 页非流式 bridge，未配置后端地址时返回 `probe`。
+- `imagine`：已支持 function 页最小非流式 bridge，未配置后端地址时保留 `probe/init-only` 回退。
+- `video`：已支持 function 页最小非流式 bridge，未配置后端地址时保留 `probe/init-only` 回退。
+
 > MySQL 示例：`mysql+aiomysql://user:password@host:3306/db`（若填 `mysql://` 会自动转为 `mysql+aiomysql://`）
 
 <br>

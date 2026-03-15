@@ -111,6 +111,12 @@ Notes:
 - If a specific bridge backend URL is not configured, chat / imagine / video fall back to `probe` or `init-only` mode.
 - When forwarding to the backend, the bridge will try to reuse `app.api_key` as the backend Bearer token automatically.
 
+Current bridge mode summary:
+
+- `chat`: non-stream function-page bridge is available; if no backend URL is configured, it falls back to `probe`.
+- `imagine`: minimal non-stream function-page bridge is available; without a backend URL it falls back to `probe/init-only`.
+- `video`: minimal non-stream function-page bridge is available; without a backend URL it falls back to `probe/init-only`.
+
 > MySQL example: `mysql+aiomysql://user:password@host:3306/db` (if you provide `mysql://`, it will be converted to `mysql+aiomysql://`).
 
 <br>
