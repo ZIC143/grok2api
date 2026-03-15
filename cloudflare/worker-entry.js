@@ -215,6 +215,7 @@ function getFunctionBootstrapConfig(config) {
 
 function getTaskCapabilitySummary(config) {
   const imagineBridge = getImagineBridgeSummary(config);
+  const videoBridge = getVideoBridgeSummary(config);
   return {
     status: 'ok',
     worker_bridge_mode: 'read-only-capability-probe',
@@ -241,11 +242,12 @@ function getTaskCapabilitySummary(config) {
       },
       video: {
         enabled: getFunctionAccessSummary(config).enabled,
-        execution_supported: false,
+        execution_supported: videoBridge.configured,
         init_supported: true,
         sse_supported: false,
         image_reference_supported: true,
         reasoning_effort_supported: true,
+        bridge: videoBridge,
       },
     },
   };
@@ -280,6 +282,7 @@ function getTaskLimitSummary(config) {
 
 function getTaskRestrictionSummary(config) {
   const imagineBridge = getImagineBridgeSummary(config);
+  const videoBridge = getVideoBridgeSummary(config);
   return {
     status: 'ok',
     restrictions: {
@@ -299,7 +302,7 @@ function getTaskRestrictionSummary(config) {
         'sse-disabled-in-worker-bridge',
       ],
       video: [
-        'start-stop-not-bridged',
+        videoBridge.configured ? 'non-stream-video-bridge-only' : 'start-stop-not-bridged',
         'sse-disabled-in-worker-bridge',
         'generation-disabled-in-worker-bridge',
       ],
@@ -1030,6 +1033,135 @@ async function handleFunctionImagineStart(request, env) {
   });
 }
 
+function resolveVideoSize(aspectRatio) {
+  switch (String(aspectRatio || '').trim() || '3:2') {
+    case '16:9':
+      return '1280x720';
+    case '9:16':
+      return '720x1280';
+    case '2:3':
+      return '1024x1792';
+    case '1:1':
+      return '1024x1024';
+    case '3:2':
+    default:
+      return '1792x1024';
+  }
+}
+
+async function handleFunctionVideoStart(request, env) {
+  const auth = await verifyFunctionRequest(request, env);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ detail: 'invalid-json' }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return json({ detail: 'payload-must-be-object' }, { status: 400 });
+  }
+
+  const prompt = String(payload.prompt || '').trim();
+  if (!prompt) {
+    return json(
+      {
+        detail: 'prompt-required',
+        message: 'Video bridge requires a prompt',
+        code: 'invalid_video_payload',
+      },
+      { status: 400 }
+    );
+  }
+
+  const bridge = getVideoBridgeSummary(auth.runtimeConfig.config);
+  if (bridge.configured) {
+    try {
+      const backendUrl = new URL(bridge.backend_url);
+      if (!/^https?:$/i.test(backendUrl.protocol)) {
+        throw new Error('invalid_backend_protocol');
+      }
+      const targetUrl = new URL('/v1/videos', backendUrl);
+      const backendApiKey = normalizeApiKeys(auth.runtimeConfig.config.app?.api_key)[0] || '';
+      const forwardHeaders = new Headers({
+        'content-type': 'application/json',
+        accept: 'application/json',
+        'x-grok2api-video-bridge': 'backend-forward',
+      });
+      if (backendApiKey) {
+        forwardHeaders.set('authorization', `Bearer ${backendApiKey}`);
+      }
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify({
+          prompt,
+          model: 'grok-imagine-1.0-video',
+          size: resolveVideoSize(payload.aspect_ratio),
+          seconds: Number(payload.video_length || 6),
+          quality: String(payload.resolution_name || '480p') === '720p' ? 'high' : 'standard',
+          image_reference: payload.image_url ? { image_url: String(payload.image_url) } : null,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type') || 'application/json';
+      const backendTraceId = response.headers.get('x-trace-id') || '';
+      const retryAfter = response.headers.get('retry-after') || '';
+      const bodyText = await response.text();
+      const responseHeaders = new Headers({
+        'content-type': contentType,
+        'cache-control': 'no-store',
+        'x-grok2api-video-bridge': 'backend-forward',
+      });
+      if (backendTraceId) {
+        responseHeaders.set('x-grok2api-backend-trace-id', backendTraceId);
+      }
+      if (retryAfter) {
+        responseHeaders.set('retry-after', retryAfter);
+      }
+      return new Response(bodyText, {
+        status: response.status,
+        headers: responseHeaders,
+      });
+    } catch (error) {
+      return json(
+        {
+          status: 'error',
+          message: 'video-bridge-forward-failed',
+          code: 'bridge_forward_failed',
+          detail: String(error && error.message ? error.message : error),
+          bridge,
+        },
+        { status: 502 }
+      );
+    }
+  }
+
+  return json({
+    status: 'accepted',
+    scene: 'video',
+    bridge_mode: 'phase-l-non-stream-probe',
+    bridge,
+    submit_supported: true,
+    execution_supported: false,
+    request_echo: {
+      prompt_length: prompt.length,
+      aspect_ratio: payload.aspect_ratio || '3:2',
+      video_length: payload.video_length || 6,
+      resolution_name: payload.resolution_name || '480p',
+    },
+  }, {
+    headers: {
+      'x-grok2api-video-bridge': 'probe',
+    },
+  });
+}
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -1698,6 +1830,10 @@ export default {
 
     if (url.pathname === '/v1/function/imagine/start' && request.method === 'POST') {
       return handleFunctionImagineStart(request, env);
+    }
+
+    if (url.pathname === '/v1/function/video/start' && request.method === 'POST') {
+      return handleFunctionVideoStart(request, env);
     }
 
     if (url.pathname === '/v1/admin/config' && request.method === 'GET') {
