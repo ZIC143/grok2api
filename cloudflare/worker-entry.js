@@ -839,14 +839,23 @@ async function handleFunctionChatCompletions(request, env) {
       });
 
       const contentType = response.headers.get('content-type') || 'application/json';
+      const backendTraceId = response.headers.get('x-trace-id') || '';
+      const retryAfter = response.headers.get('retry-after') || '';
       const bodyText = await response.text();
+      const responseHeaders = new Headers({
+        'content-type': contentType,
+        'cache-control': 'no-store',
+        'x-grok2api-chat-bridge': 'backend-forward',
+      });
+      if (backendTraceId) {
+        responseHeaders.set('x-grok2api-backend-trace-id', backendTraceId);
+      }
+      if (retryAfter) {
+        responseHeaders.set('retry-after', retryAfter);
+      }
       return new Response(bodyText, {
         status: response.status,
-        headers: {
-          'content-type': contentType,
-          'cache-control': 'no-store',
-          'x-grok2api-chat-bridge': 'backend-forward',
-        },
+        headers: responseHeaders,
       });
     } catch (error) {
       return json(

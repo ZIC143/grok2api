@@ -52,6 +52,7 @@ class ResponseLoggerMiddleware(BaseHTTPMiddleware):
 
         try:
             response = await call_next(request)
+            response.headers["X-Trace-Id"] = trace_id
 
             # 计算耗时
             duration = (time.time() - start_time) * 1000
