@@ -491,6 +491,8 @@
     "startedTasks": "Started {count} concurrent tasks",
     "startedTasksSSE": "Started {count} concurrent tasks (SSE)",
     "generatingSSE": "Generating (SSE)",
+    "bridgeBackendReady": "Imagine bridge backend forwarding is ready",
+    "bridgeInitOnly": "Imagine currently exposes init-only config; execution bridge is not enabled yet",
     "selectFolder": "Selected folder: {name}",
     "selectFolderFailed": "Failed to select folder",
     "noImagesSelected": "Please select images to download first",

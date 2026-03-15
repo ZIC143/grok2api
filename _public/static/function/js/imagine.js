@@ -47,11 +47,17 @@
   let streamSequence = 0;
   const streamImageMap = new Map();
   let finalMinBytesDefault = 100000;
+  let imagineBridgeMode = 'init-only';
 
   function applyImagineManifest(manifest) {
     const parts = window.SceneAssembly.getSceneParts(manifest, 'imagine');
     if (!parts) return;
     const { scene, fieldMap } = parts;
+    imagineBridgeMode = manifest && manifest.runtime && manifest.runtime.imagine_bridge && manifest.runtime.imagine_bridge.mode
+      ? String(manifest.runtime.imagine_bridge.mode)
+      : (scene && scene.capabilities && scene.capabilities.bridge && scene.capabilities.bridge.mode
+        ? String(scene.capabilities.bridge.mode)
+        : 'init-only');
 
     const manifestMinBytes = window.SceneAssembly.getBootstrapNumber(parts, 'final_min_bytes');
     if (manifestMinBytes !== null) {
@@ -119,6 +125,12 @@
         basic: window.SceneAssembly.resolveFieldContainer(ratioSelect),
       },
     });
+
+    if (imagineBridgeMode === 'backend-forward-ready') {
+      setStatus('connected', t('imagine.bridgeBackendReady'));
+    } else if (imagineBridgeMode === 'init-only') {
+      setStatus('connected', t('imagine.bridgeInitOnly'));
+    }
   }
 
   function toast(message, type) {
