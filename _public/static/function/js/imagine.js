@@ -50,7 +50,8 @@
   let imagineBridgeMode = 'init-only';
 
   function buildAuthHeaders(authHeader) {
-    return window.AdminAuth.buildFunctionJsonHeaders(authHeader);
+    if (!authHeader) return {};
+    return { Authorization: authHeader };
   }
 
   function getImagineBackendTraceId(res) {
