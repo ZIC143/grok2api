@@ -110,6 +110,8 @@ docker compose up -d
 - 当前 bridge 主要覆盖 function 页的最小可用执行链路。
 - 当未配置对应地址时，chat / imagine / video 会退回到 `probe` 或 `init-only` 模式。
 - bridge 转发到后端时，会自动尝试复用 `app.api_key` 作为后端 Bearer 鉴权。
+- bridge 响应会附带 `x-grok2api-*-bridge` 响应头，用于前端区分 `probe` 与 `backend-forward`。
+- 若后端返回追踪或限流信息，bridge 还会透传 `x-grok2api-backend-trace-id` 与 `retry-after`。
 
 当前 bridge 模式说明：
 

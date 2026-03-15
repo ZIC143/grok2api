@@ -110,6 +110,8 @@ Notes:
 - The current bridge scope mainly covers the minimal executable flow for function pages.
 - If a specific bridge backend URL is not configured, chat / imagine / video fall back to `probe` or `init-only` mode.
 - When forwarding to the backend, the bridge will try to reuse `app.api_key` as the backend Bearer token automatically.
+- Bridge responses include `x-grok2api-*-bridge` headers so the frontend can distinguish `probe` and `backend-forward` modes.
+- If the backend returns trace or rate-limit hints, the bridge also forwards `x-grok2api-backend-trace-id` and `retry-after`.
 
 Current bridge mode summary:
 
