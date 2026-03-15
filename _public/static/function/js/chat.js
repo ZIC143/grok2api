@@ -1579,7 +1579,15 @@
     if (!res) return t('chat.requestFailedStatus', { status: 'unknown' });
     try {
       const data = await res.clone().json();
-      const parts = [data && data.message, data && data.detail, data && data.code]
+      const errorData = data && typeof data.error === 'object' ? data.error : null;
+      const parts = [
+        data && data.message,
+        data && data.detail,
+        data && data.code,
+        errorData && errorData.message,
+        errorData && errorData.param,
+        errorData && errorData.code,
+      ]
         .filter((value, index, list) => value && list.indexOf(value) === index);
       if (parts.length) {
         return parts.join(' · ');
