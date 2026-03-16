@@ -370,6 +370,16 @@ function getBridgeRequestId(res) {
   return res.headers.get('x-grok2api-request-id') || '';
 }
 
+function getBridgeIdempotencyKey(res) {
+  if (!res || !res.headers) return '';
+  return res.headers.get('x-grok2api-idempotency-key') || '';
+}
+
+function getBridgeIdempotencyKey(res) {
+  if (!res || !res.headers) return '';
+  return res.headers.get('x-grok2api-idempotency-key') || '';
+}
+
 function getBridgeMode(res, headerName) {
   if (!res || !res.headers || !headerName) return '';
   return res.headers.get(headerName) || '';
@@ -386,6 +396,7 @@ function isProbeBridgeResponse(res, headerName) {
 function isBackendForwardBridgeResponse(res, headerName) {
   return isBridgeMode(res, headerName, 'backend-forward');
 }
+  getBridgeIdempotencyKey,
 
 function getBridgeRetryAfter(res) {
   if (!res || !res.headers) return '';
@@ -522,6 +533,7 @@ window.AdminAuth = {
   postFunctionJsonRaw,
   getBridgeBackendTraceId,
   getBridgeRequestId,
+  getBridgeIdempotencyKey,
   getBridgeMode,
   isBridgeMode,
   isProbeBridgeResponse,

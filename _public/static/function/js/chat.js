@@ -1558,6 +1558,9 @@
 
   function applyChatFailurePresentation(assistantEntry, displayText, statusTextKey, toastText, sessionId) {
     assistantEntry.retryable = isRetryableChatFailure({ message: toastText });
+    if (assistantEntry.debugInfoText) {
+      assistantEntry.raw = `${displayText}\n\n${assistantEntry.debugInfoText}`;
+    }
     updateMessage(assistantEntry, displayText, true);
     setStatus('error', t(statusTextKey));
     toast(toastText, 'error');
@@ -1565,6 +1568,35 @@
       assistantEntry.committed = true;
       commitToSession(sessionId, displayText);
     }
+  }
+
+  function getChatFailureDebugInfo(error, res) {
+    const message = String(error && error.message ? error.message : '');
+    const requestId = window.AdminAuth.getBridgeRequestId(res);
+    const idempotencyKey = window.AdminAuth.getBridgeIdempotencyKey(res);
+    let timeoutClass = '';
+    if (message.includes('bridge_first_byte_timeout') || message.includes('chat-bridge-first-byte-timeout')) {
+      timeoutClass = 'first-byte-timeout';
+    } else if (message.includes('bridge_timeout') || message.includes('chat-bridge-forward-timeout')) {
+      timeoutClass = 'total-timeout';
+    }
+    return { requestId, idempotencyKey, timeoutClass };
+  }
+
+  function formatChatFailureDebugInfo(debugInfo) {
+    if (!debugInfo) return '';
+    const lines = [];
+    if (debugInfo.requestId) {
+      lines.push(t('chat.debugRequestId', { value: debugInfo.requestId }));
+    }
+    if (debugInfo.idempotencyKey) {
+      lines.push(t('chat.debugIdempotencyKey', { value: debugInfo.idempotencyKey }));
+    }
+    if (debugInfo.timeoutClass) {
+      lines.push(t('chat.debugTimeoutClass', { value: debugInfo.timeoutClass }));
+    }
+    if (!lines.length) return '';
+    return `${t('chat.debugInfoTitle')}\n${lines.join('\n')}`;
   }
 
   function isRetryableChatFailure(error) {
@@ -1757,6 +1789,9 @@
     const retryBtn = createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast());
     const editBtn = createActionButton(t('chat.editAnswer'), t('chat.editAnswerTitle'), () => editMessageByRow(entry.row));
     const copyBtn = createActionButton(t('chat.copyAnswer'), t('chat.copyAnswerTitle'), () => copyToClipboard(entry.raw || ''));
+    const copyDebugBtn = entry.debugInfoText
+      ? createActionButton(t('chat.copyDebugInfo'), t('chat.copyDebugInfoTitle'), () => copyToClipboard(entry.debugInfoText))
+      : null;
     const feedbackBtn = createActionButton(t('chat.feedback'), t('chat.feedbackTitle'), () => {
       window.open(feedbackUrl, '_blank', 'noopener');
     });
@@ -1764,6 +1799,7 @@
     actions.appendChild(retryBtn);
     actions.appendChild(editBtn);
     actions.appendChild(copyBtn);
+    if (copyDebugBtn) actions.appendChild(copyDebugBtn);
     actions.appendChild(feedbackBtn);
     entry.row.appendChild(actions);
   }
@@ -1856,6 +1892,7 @@
       await handleStream(res, assistantEntry, retrySessionId);
       setStatus('connected', t('common.done'));
     } catch (e) {
+      assistantEntry.debugInfoText = formatChatFailureDebugInfo(getChatFailureDebugInfo(e, bridgeRes));
       const failure = getChatFailurePresentation(e, bridgeRes);
       applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, retrySessionId);
     } finally {
@@ -1964,6 +2001,7 @@
           updateThinkSummary(assistantEntry, elapsed);
         }
       } else {
+        assistantEntry.debugInfoText = formatChatFailureDebugInfo(getChatFailureDebugInfo(e, bridgeRes));
         const failure = getChatFailurePresentation(e, bridgeRes);
         applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, sendSessionId);
       }
