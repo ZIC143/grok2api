@@ -890,9 +890,17 @@ async function handleFunctionChatCompletions(request, env) {
 
     if (bridge.configured) {
       const timeoutSeconds = Number(auth.runtimeConfig.config.chat?.timeout || 60);
+      const firstByteTimeoutSeconds = Number(auth.runtimeConfig.config.chat?.stream_timeout || timeoutSeconds || 60);
       const timeoutMs = Number.isFinite(timeoutSeconds) && timeoutSeconds > 0 ? timeoutSeconds * 1000 : 60000;
+      const firstByteTimeoutMs = Number.isFinite(firstByteTimeoutSeconds) && firstByteTimeoutSeconds > 0
+        ? firstByteTimeoutSeconds * 1000
+        : timeoutMs;
       const controller = new AbortController();
-      const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+      let timeoutReason = 'total_timeout';
+      const timeoutHandle = setTimeout(() => {
+        timeoutReason = 'first_byte_timeout';
+        controller.abort();
+      }, firstByteTimeoutMs);
       try {
         const backendUrl = new URL(bridge.backend_url);
         if (!/^https?:$/i.test(backendUrl.protocol)) {
@@ -918,10 +926,17 @@ async function handleFunctionChatCompletions(request, env) {
           signal: controller.signal,
         });
 
+        clearTimeout(timeoutHandle);
+        const totalTimeoutHandle = setTimeout(() => {
+          timeoutReason = 'total_timeout';
+          controller.abort();
+        }, timeoutMs);
+
         const contentType = response.headers.get('content-type') || 'application/json';
         const backendTraceId = response.headers.get('x-trace-id') || '';
         const retryAfter = response.headers.get('retry-after') || '';
         const bodyText = await response.text();
+        clearTimeout(totalTimeoutHandle);
         const responseHeaders = new Headers({
           'content-type': contentType,
           'cache-control': 'no-store',
@@ -943,12 +958,15 @@ async function handleFunctionChatCompletions(request, env) {
         });
       } catch (error) {
         if (error && error.name === 'AbortError') {
+          const isFirstByteTimeout = timeoutReason === 'first_byte_timeout';
           return json(
             {
               status: 'error',
-              message: 'chat-bridge-forward-timeout',
-              code: 'bridge_timeout',
-              detail: `chat backend did not respond within ${Math.round(timeoutMs / 1000)}s`,
+              message: isFirstByteTimeout ? 'chat-bridge-first-byte-timeout' : 'chat-bridge-forward-timeout',
+              code: isFirstByteTimeout ? 'bridge_first_byte_timeout' : 'bridge_timeout',
+              detail: isFirstByteTimeout
+                ? `chat backend did not produce the first response within ${Math.round(firstByteTimeoutMs / 1000)}s`
+                : `chat backend did not finish within ${Math.round(timeoutMs / 1000)}s`,
               bridge,
             },
             {

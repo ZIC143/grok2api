@@ -1161,14 +1161,8 @@
         if (e && e.name === 'AbortError') {
           handleChatAbort(assistantEntry, sendSessionId);
         } else {
-          updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
-          setStatus('error', t('common.failed'));
-          const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
-            e,
-            t('chat.requestFailedStatus', { status: 'unknown' }),
-            getFriendlyChatFailureMessage(e, bridgeRes)
-          );
-          toast(bridgeError.toast, 'error');
+          const failure = getChatFailurePresentation(e, bridgeRes);
+          applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, sendSessionId);
         }
       } finally {
         finishChatBridgeRequest(requestMeta.idempotencyKey);
@@ -1542,6 +1536,9 @@
     if (message.includes('duplicate_request_inflight') || message.includes('duplicate-chat-submission-in-flight')) {
       return t('chat.duplicateSubmissionInFlight');
     }
+    if (message.includes('bridge_first_byte_timeout') || message.includes('chat-bridge-first-byte-timeout')) {
+      return t('chat.firstByteTimeoutRetry');
+    }
     if (message.includes('bridge_timeout') || message.includes('chat-bridge-forward-timeout')) {
       return t('chat.bridgeTimeout');
     }
@@ -1549,13 +1546,65 @@
   }
 
   function handleChatAbort(assistantEntry, sessionId) {
-    updateMessage(assistantEntry, assistantEntry.raw || t('chat.requestCancelled'), true);
+    assistantEntry.retryable = false;
+    updateMessage(assistantEntry, t('chat.inlineCancelled'), true);
     setStatus('error', t('chat.requestCancelledStatus'));
     toast(t('chat.requestCancelledToast'), 'warning');
     if (!assistantEntry.committed) {
       assistantEntry.committed = true;
-      commitToSession(sessionId, assistantEntry.raw || t('chat.requestCancelled'));
+      commitToSession(sessionId, t('chat.inlineCancelled'));
     }
+  }
+
+  function applyChatFailurePresentation(assistantEntry, displayText, statusTextKey, toastText, sessionId) {
+    assistantEntry.retryable = isRetryableChatFailure({ message: toastText });
+    updateMessage(assistantEntry, displayText, true);
+    setStatus('error', t(statusTextKey));
+    toast(toastText, 'error');
+    if (!assistantEntry.committed) {
+      assistantEntry.committed = true;
+      commitToSession(sessionId, displayText);
+    }
+  }
+
+  function isRetryableChatFailure(error) {
+    const message = String(error && error.message ? error.message : '');
+    return message.includes('duplicate_request_inflight')
+      || message.includes('duplicate-chat-submission-in-flight')
+      || message.includes('bridge_first_byte_timeout')
+      || message.includes('chat-bridge-first-byte-timeout')
+      || message.includes('bridge_timeout')
+      || message.includes('chat-bridge-forward-timeout');
+  }
+
+  function getChatFailurePresentation(error, res) {
+    const message = String(error && error.message ? error.message : '');
+    if (message.includes('duplicate_request_inflight') || message.includes('duplicate-chat-submission-in-flight')) {
+      return {
+        inline: t('chat.inlineDuplicateSubmission'),
+        statusKey: 'chat.requestDeferredStatus',
+        toast: t('chat.duplicateSubmissionInFlight'),
+      };
+    }
+    if (message.includes('bridge_first_byte_timeout') || message.includes('chat-bridge-first-byte-timeout')) {
+      return {
+        inline: t('chat.inlineFirstByteTimeout'),
+        statusKey: 'chat.firstByteTimeoutStatus',
+        toast: t('chat.firstByteTimeoutRetry'),
+      };
+    }
+    if (message.includes('bridge_timeout') || message.includes('chat-bridge-forward-timeout')) {
+      return {
+        inline: t('chat.inlineTimeout'),
+        statusKey: 'chat.requestTimeoutStatus',
+        toast: t('chat.requestTimeoutRetry'),
+      };
+    }
+    return {
+      inline: t('chat.inlineRequestFailed'),
+      statusKey: 'common.failed',
+      toast: getFriendlyChatFailureMessage(error, res),
+    };
   }
 
   function selectModel(value) {
@@ -1702,6 +1751,9 @@
     const actions = document.createElement('div');
     actions.className = 'message-actions';
 
+    if (entry.retryable) {
+      actions.appendChild(createActionButton(t('chat.retryNow'), t('chat.retryNowTitle'), () => retryLast()));
+    }
     const retryBtn = createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast());
     const editBtn = createActionButton(t('chat.editAnswer'), t('chat.editAnswerTitle'), () => editMessageByRow(entry.row));
     const copyBtn = createActionButton(t('chat.copyAnswer'), t('chat.copyAnswerTitle'), () => copyToClipboard(entry.raw || ''));
@@ -1804,14 +1856,8 @@
       await handleStream(res, assistantEntry, retrySessionId);
       setStatus('connected', t('common.done'));
     } catch (e) {
-      updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
-      setStatus('error', t('common.failed'));
-      const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
-        e,
-        t('chat.requestFailedStatus', { status: 'unknown' }),
-        getFriendlyChatFailureMessage(e, bridgeRes)
-      );
-      toast(bridgeError.toast, 'error');
+      const failure = getChatFailurePresentation(e, bridgeRes);
+      applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, retrySessionId);
     } finally {
       finishChatBridgeRequest(requestMeta.idempotencyKey);
       setSendingState(false);
@@ -1918,14 +1964,8 @@
           updateThinkSummary(assistantEntry, elapsed);
         }
       } else {
-        updateMessage(assistantEntry, t('chat.requestFailedStatus', { status: e.message || e }), true);
-        setStatus('error', t('common.failed'));
-        const bridgeError = window.AdminAuth.splitBridgeErrorMessage(
-          e,
-          t('chat.requestFailedStatus', { status: 'unknown' }),
-          getFriendlyChatFailureMessage(e, bridgeRes)
-        );
-        toast(bridgeError.toast, 'error');
+        const failure = getChatFailurePresentation(e, bridgeRes);
+        applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, sendSessionId);
       }
     } finally {
       finishChatBridgeRequest(requestMeta.idempotencyKey);
