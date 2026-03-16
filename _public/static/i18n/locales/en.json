@@ -457,6 +457,7 @@
     "retryActionImmediateTitle": "Retry this failed request immediately with the recommended path",
     "retryActionConfirm": "Retry after confirmation",
     "retryActionConfirmTitle": "Confirm first, then retry this failed request with the recommended path",
+    "recommendedBadge": "Recommended",
     "copyDebugInfo": "Copy debug info",
     "copyDebugInfoTitle": "Copy debug information for this failed request",
     "retryStrategyDelayed": "A duplicate in-flight request was detected. Retrying shortly with the recommended path",

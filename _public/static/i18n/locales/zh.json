@@ -457,6 +457,7 @@
     "retryActionImmediateTitle": "按推荐路径立即重试这次失败请求",
     "retryActionConfirm": "确认后重试",
     "retryActionConfirmTitle": "先确认再按推荐路径重试这次失败请求",
+    "recommendedBadge": "推荐",
     "copyDebugInfo": "复制调试信息",
     "copyDebugInfoTitle": "复制本次失败的调试信息",
     "retryStrategyDelayed": "检测到重复请求，稍后按推荐路径重试",

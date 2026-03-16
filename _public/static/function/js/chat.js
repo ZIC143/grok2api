@@ -1841,6 +1841,18 @@
     return btn;
   }
 
+  function createStyledActionButton(label, title, onClick, variant = '', options = {}) {
+    const btn = createActionButton(label, title, onClick);
+    if (variant) btn.classList.add(`action-btn-${variant}`);
+    if (options.showRecommendedBadge) {
+      const badge = document.createElement('span');
+      badge.className = 'action-btn-badge';
+      badge.textContent = t('chat.recommendedBadge');
+      btn.appendChild(badge);
+    }
+    return btn;
+  }
+
   async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
     const data = await res.json();
     assistantEntry.failed = false;
@@ -1862,19 +1874,25 @@
   function attachAssistantActions(entry) {
     if (!entry || !entry.row) return;
     const actions = document.createElement('div');
-    actions.className = 'message-actions';
+    actions.className = entry.failed ? 'message-actions is-grouped' : 'message-actions';
+    const retryStrategy = entry.retryStrategy || null;
+    const retryActionCopy = getChatRetryActionCopy(retryStrategy);
+    const hasSpecificRetryStrategy = Boolean(retryStrategy && retryStrategy.mode && retryStrategy.mode !== 'normal-retry');
     const retryGroup = document.createElement('div');
     retryGroup.className = 'message-action-group message-action-group-retry';
     const infoGroup = document.createElement('div');
     infoGroup.className = 'message-action-group message-action-group-info';
     const editGroup = document.createElement('div');
     editGroup.className = 'message-action-group message-action-group-edit';
-    const retryStrategy = entry.retryStrategy || null;
-    const retryActionCopy = getChatRetryActionCopy(retryStrategy);
-    const hasSpecificRetryStrategy = Boolean(retryStrategy && retryStrategy.mode && retryStrategy.mode !== 'normal-retry');
 
-    if (entry.retryable) {
-      retryGroup.appendChild(createActionButton(retryActionCopy.label, retryActionCopy.title, () => retryLast(retryStrategy)));
+    if (entry.failed && entry.retryable) {
+      retryGroup.appendChild(createStyledActionButton(
+        retryActionCopy.label,
+        retryActionCopy.title,
+        () => retryLast(retryStrategy),
+        'primary',
+        { showRecommendedBadge: hasSpecificRetryStrategy }
+      ));
     }
     const editBtn = createActionButton(t('chat.editAnswer'), t('chat.editAnswerTitle'), () => editMessageByRow(entry.row));
     const copyBtn = createActionButton(t('chat.copyAnswer'), t('chat.copyAnswerTitle'), () => copyToClipboard(entry.raw || ''));
@@ -1885,17 +1903,25 @@
       window.open(feedbackUrl, '_blank', 'noopener');
     });
 
-    if (entry.retryable && !hasSpecificRetryStrategy) {
-      retryGroup.appendChild(createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(retryStrategy)));
+    if (entry.failed && entry.retryable && !hasSpecificRetryStrategy) {
+      retryGroup.appendChild(createStyledActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(retryStrategy), 'secondary'));
     }
     infoGroup.appendChild(copyBtn);
     if (copyDebugBtn) infoGroup.appendChild(copyDebugBtn);
     infoGroup.appendChild(feedbackBtn);
     editGroup.appendChild(editBtn);
 
-    if (retryGroup.childElementCount) actions.appendChild(retryGroup);
-    if (infoGroup.childElementCount) actions.appendChild(infoGroup);
-    if (editGroup.childElementCount) actions.appendChild(editGroup);
+    if (entry.failed) {
+      if (retryGroup.childElementCount) actions.appendChild(retryGroup);
+      if (infoGroup.childElementCount) actions.appendChild(infoGroup);
+      if (editGroup.childElementCount) actions.appendChild(editGroup);
+    } else {
+      actions.appendChild(copyBtn);
+      if (editGroup.childElementCount) {
+        Array.from(editGroup.children).forEach((node) => actions.appendChild(node));
+      }
+      actions.appendChild(feedbackBtn);
+    }
     entry.row.appendChild(actions);
   }
 
