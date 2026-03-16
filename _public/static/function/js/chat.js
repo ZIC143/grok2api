@@ -1161,8 +1161,8 @@
         if (e && e.name === 'AbortError') {
           handleChatAbort(assistantEntry, sendSessionId);
         } else {
-          const failure = getChatFailurePresentation(e, bridgeRes);
-          applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, sendSessionId);
+          const failure = getChatFailurePresentation(e, bridgeRes, assistantEntry.retryStrategy);
+          applyChatFailurePresentation(assistantEntry, failure, sendSessionId);
         }
       } finally {
         finishChatBridgeRequest(requestMeta.idempotencyKey);
@@ -1515,7 +1515,8 @@
     if (requestMeta) {
       return requestMeta;
     }
-    toast(t('chat.duplicateSubmissionInFlight'), 'warning');
+    const retryStrategyMeta = getChatRetryStrategyMeta({ mode: 'delayed-retry' });
+    toast(retryStrategyMeta.failureToast || t('chat.duplicateSubmissionInFlight'), 'warning');
     return null;
   }
 
@@ -1543,6 +1544,91 @@
     return getChatBridgeFailureToast(res);
   }
 
+  function getChatTerminalPresentation(kind, options = {}) {
+    const strategy = options.strategy || null;
+    const retryStrategyMeta = getChatRetryStrategyMeta(strategy);
+    const error = options.error || null;
+    const res = options.res || null;
+
+    if (kind === 'cancelled') {
+      return {
+        failed: true,
+        retryable: false,
+        displayText: t('chat.inlineCancelled'),
+        sessionText: t('chat.inlineCancelled'),
+        statusText: t('chat.requestCancelledStatus'),
+        statusLevel: 'error',
+        toastText: t('chat.requestCancelledToast'),
+        toastLevel: 'warning',
+      };
+    }
+
+    if (kind === 'deferred') {
+      return {
+        failed: true,
+        retryable: true,
+        displayText: t('chat.inlineDuplicateSubmission'),
+        sessionText: t('chat.inlineDuplicateSubmission'),
+        statusText: getChatFailureStatusText('chat.requestDeferredStatus', strategy),
+        statusLevel: 'error',
+        toastText: retryStrategyMeta.failureToast || t('chat.duplicateSubmissionInFlight'),
+        toastLevel: 'warning',
+      };
+    }
+
+    if (kind === 'failure') {
+      const message = String(error && error.message ? error.message : '');
+      if (message.includes('duplicate_request_inflight') || message.includes('duplicate-chat-submission-in-flight')) {
+        return {
+          failed: true,
+          retryable: true,
+          displayText: t('chat.inlineDuplicateSubmission'),
+          sessionText: t('chat.inlineDuplicateSubmission'),
+          statusText: getChatFailureStatusText('chat.requestDeferredStatus', strategy),
+          statusLevel: 'error',
+          toastText: retryStrategyMeta.failureToast || t('chat.duplicateSubmissionInFlight'),
+          toastLevel: 'error',
+        };
+      }
+      if (message.includes('bridge_first_byte_timeout') || message.includes('chat-bridge-first-byte-timeout')) {
+        return {
+          failed: true,
+          retryable: true,
+          displayText: t('chat.inlineFirstByteTimeout'),
+          sessionText: t('chat.inlineFirstByteTimeout'),
+          statusText: getChatFailureStatusText('chat.firstByteTimeoutStatus', strategy),
+          statusLevel: 'error',
+          toastText: retryStrategyMeta.failureToast || t('chat.firstByteTimeoutRetry'),
+          toastLevel: 'error',
+        };
+      }
+      if (message.includes('bridge_timeout') || message.includes('chat-bridge-forward-timeout')) {
+        return {
+          failed: true,
+          retryable: true,
+          displayText: t('chat.inlineTimeout'),
+          sessionText: t('chat.inlineTimeout'),
+          statusText: getChatFailureStatusText('chat.requestTimeoutStatus', strategy),
+          statusLevel: 'error',
+          toastText: retryStrategyMeta.failureToast || t('chat.requestTimeoutRetry'),
+          toastLevel: 'error',
+        };
+      }
+      return {
+        failed: true,
+        retryable: false,
+        displayText: t('chat.inlineRequestFailed'),
+        sessionText: t('chat.inlineRequestFailed'),
+        statusText: getChatFailureStatusText('common.failed', strategy),
+        statusLevel: 'error',
+        toastText: getFriendlyChatFailureMessage(error, res),
+        toastLevel: 'error',
+      };
+    }
+
+    return null;
+  }
+
   function applyChatTerminalPresentation(assistantEntry, presentation, sessionId) {
     assistantEntry.failed = Boolean(presentation.failed);
     assistantEntry.retryable = Boolean(presentation.retryable);
@@ -1567,38 +1653,28 @@
   }
 
   function handleChatAbort(assistantEntry, sessionId) {
-    applyChatTerminalPresentation(assistantEntry, {
-      failed: true,
-      retryable: false,
-      displayText: t('chat.inlineCancelled'),
-      sessionText: t('chat.inlineCancelled'),
-      statusText: t('chat.requestCancelledStatus'),
-      statusLevel: 'error',
-      toastText: t('chat.requestCancelledToast'),
-      toastLevel: 'warning',
-    }, sessionId);
+    applyChatTerminalPresentation(assistantEntry, getChatTerminalPresentation('cancelled'), sessionId);
   }
 
-  function applyChatFailurePresentation(assistantEntry, displayText, statusTextKey, toastText, sessionId) {
-    const retryable = isRetryableChatFailure({ message: toastText });
+  function applyChatFailurePresentation(assistantEntry, presentation, sessionId) {
     const retryStrategyMeta = getChatRetryStrategyMeta(assistantEntry.retryStrategy);
     const retryStrategyLabel = retryStrategyMeta.recommendedLabel;
     const displayTextWithRetryHint = retryStrategyLabel
-      ? `${displayText}\n\n${t('chat.recommendedRetryPrefix', { action: retryStrategyLabel })}`
-      : displayText;
+      ? `${presentation.displayText}\n\n${t('chat.recommendedRetryPrefix', { action: retryStrategyLabel })}`
+      : presentation.displayText;
     applyChatTerminalPresentation(assistantEntry, {
       failed: true,
-      retryable,
+      retryable: presentation.retryable,
       displayText: displayTextWithRetryHint,
       sessionText: displayTextWithRetryHint,
       rawText: assistantEntry.debugInfoText
         ? `${displayTextWithRetryHint}\n\n${assistantEntry.debugInfoText}`
         : displayTextWithRetryHint,
       debugInfoText: assistantEntry.debugInfoText,
-      statusText: getChatFailureStatusText(statusTextKey, assistantEntry.retryStrategy),
-      statusLevel: 'error',
-      toastText,
-      toastLevel: 'error',
+      statusText: presentation.statusText,
+      statusLevel: presentation.statusLevel,
+      toastText: presentation.toastText,
+      toastLevel: presentation.toastLevel,
     }, sessionId);
   }
 
@@ -1734,35 +1810,8 @@
       || message.includes('chat-bridge-forward-timeout');
   }
 
-  function getChatFailurePresentation(error, res) {
-    const message = String(error && error.message ? error.message : '');
-    const retryStrategyMeta = getChatRetryStrategyMeta(getChatRetryStrategy(error, getChatFailureDebugInfo(error, res)));
-    if (message.includes('duplicate_request_inflight') || message.includes('duplicate-chat-submission-in-flight')) {
-      return {
-        inline: t('chat.inlineDuplicateSubmission'),
-        statusKey: 'chat.requestDeferredStatus',
-        toast: retryStrategyMeta.failureToast || t('chat.duplicateSubmissionInFlight'),
-      };
-    }
-    if (message.includes('bridge_first_byte_timeout') || message.includes('chat-bridge-first-byte-timeout')) {
-      return {
-        inline: t('chat.inlineFirstByteTimeout'),
-        statusKey: 'chat.firstByteTimeoutStatus',
-        toast: retryStrategyMeta.failureToast || t('chat.firstByteTimeoutRetry'),
-      };
-    }
-    if (message.includes('bridge_timeout') || message.includes('chat-bridge-forward-timeout')) {
-      return {
-        inline: t('chat.inlineTimeout'),
-        statusKey: 'chat.requestTimeoutStatus',
-        toast: retryStrategyMeta.failureToast || t('chat.requestTimeoutRetry'),
-      };
-    }
-    return {
-      inline: t('chat.inlineRequestFailed'),
-      statusKey: 'common.failed',
-      toast: getFriendlyChatFailureMessage(error, res),
-    };
+  function getChatFailurePresentation(error, res, strategy) {
+    return getChatTerminalPresentation('failure', { error, res, strategy });
   }
 
   function selectModel(value) {
@@ -2048,6 +2097,9 @@
     const payload = buildPayloadFrom(historySlice);
     const requestMeta = buildChatBridgeHeadersOrWarn(payload);
     if (!requestMeta) {
+      const retryStrategy = { mode: 'delayed-retry', delayMs: 1200, toast: t('chat.retryStrategyDelayed') };
+      assistantEntry.retryStrategy = retryStrategy;
+      applyChatTerminalPresentation(assistantEntry, getChatTerminalPresentation('deferred', { strategy: retryStrategy }), retrySessionId);
       setSendingState(false);
       abortController = null;
       return;
@@ -2091,8 +2143,8 @@
       const debugInfo = getChatFailureDebugInfo(e, bridgeRes);
       assistantEntry.retryStrategy = getChatRetryStrategy(e, debugInfo);
       assistantEntry.debugInfoText = formatChatFailureDebugInfo(debugInfo);
-      const failure = getChatFailurePresentation(e, bridgeRes);
-      applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, retrySessionId);
+      const failure = getChatFailurePresentation(e, bridgeRes, assistantEntry.retryStrategy);
+      applyChatFailurePresentation(assistantEntry, failure, retrySessionId);
     } finally {
       finishChatBridgeRequest(requestMeta.idempotencyKey);
       setSendingState(false);
@@ -2152,6 +2204,9 @@
     const payload = buildPayload();
     const requestMeta = buildChatBridgeHeadersOrWarn(payload);
     if (!requestMeta) {
+      const retryStrategy = { mode: 'delayed-retry', delayMs: 1200, toast: t('chat.retryStrategyDelayed') };
+      assistantEntry.retryStrategy = retryStrategy;
+      applyChatTerminalPresentation(assistantEntry, getChatTerminalPresentation('deferred', { strategy: retryStrategy }), sendSessionId);
       setSendingState(false);
       abortController = null;
       return;
@@ -2202,8 +2257,8 @@
         const debugInfo = getChatFailureDebugInfo(e, bridgeRes);
         assistantEntry.retryStrategy = getChatRetryStrategy(e, debugInfo);
         assistantEntry.debugInfoText = formatChatFailureDebugInfo(debugInfo);
-        const failure = getChatFailurePresentation(e, bridgeRes);
-        applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, sendSessionId);
+        const failure = getChatFailurePresentation(e, bridgeRes, assistantEntry.retryStrategy);
+        applyChatFailurePresentation(assistantEntry, failure, sendSessionId);
       }
     } finally {
       finishChatBridgeRequest(requestMeta.idempotencyKey);

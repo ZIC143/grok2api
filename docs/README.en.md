@@ -130,7 +130,7 @@ Current bridge mode summary:
 
 At the end of Phase 1, the following lightweight checks are recommended:
 
-#### Automated smoke (deployment side)
+#### Phase 2 automated smoke (deployment side)
 
 - The Cloudflare Workers deployment workflow already checks: `/health`, `/ready`, `/meta`, `/config`, and `/config/sections`.
 - If a change touches Worker manifest or bridge runtime metadata, also spot-check `/v1/function/manifest` after deployment.
@@ -180,6 +180,61 @@ Conclusion:
 
 - Phase 1 **code-level consolidation and static validation** are complete.
 - To fully close Phase 1, the next step should be either one real deployment smoke run or one recorded browser manual regression pass.
+
+### Phase 2 Chat Completion Light Smoke / Manual Regression Notes
+
+At the end of Phase 2, the following lightweight checks are recommended:
+
+#### Automated smoke (deployment side)
+
+- After Cloudflare Workers deployment, spot-check `/health`, `/ready`, `/meta`, and `/v1/function/manifest`.
+- If chat backend-forward is enabled, also verify the function chat page bootstrap manifest and bridge mode on first load.
+
+#### Manual regression (chat page)
+
+1. Success path
+
+- Non-stream requests return content correctly in `backend-forward-ready` mode.
+- If a streaming path is still enabled, confirm first chunk arrival, completion state, and post-cancel recovery all behave correctly.
+
+1. Failure / terminal states
+
+- Local duplicate submission lands consistently as a deferred terminal state across assistant message, status bar, and toast.
+- User cancellation lands consistently as a cancelled terminal state across assistant message, status bar, and toast.
+- First-byte timeout, total timeout, and generic failures land consistently as failure terminal states.
+
+1. Actions and usability
+
+- Recommended retry buttons keep label, icon, badge, title, aria-label, and inline “recommended retry path” text consistent.
+- Successful messages keep only copy / edit / feedback, ordered as copy first, edit second, feedback last.
+- Failed messages group actions as retry / info / edit, with the recommended retry button visually emphasized.
+
+#### Phase 2 recorded in this round
+
+- Completed: duplicate / cancelled / failure terminal states in chat now share the same terminal presentation model.
+- Completed: toast, status bar, assistant inline text, and retry button title/aria/icon/badge/path text are largely consolidated into one strategy mapping.
+- Completed: button ordering, grouping, and visual hierarchy for success vs failure messages were consolidated.
+
+### Phase 2 Actual Regression Summary
+
+The following regression and validation results were actually completed in this round:
+
+- Passed: `_public/static/function/js/chat.js` returned zero static errors.
+- Passed: `_public/static/function/css/chat.css` returned zero static errors.
+- Passed: `_public/static/i18n/locales/zh.json` and `en.json` returned zero static errors.
+- Confirmed: deferred / cancelled / failure terminal states in chat now share one unified presentation object model and application path.
+- Confirmed: recommended retry buttons, status text, inline hint text, and major failure toasts are now mostly driven by one shared strategy mapping.
+
+The following items were **not actually executed** in this round:
+
+- No fresh live-deployment smoke run was executed for Phase 2 Workers / chat behavior.
+- No real browser click-through regression was completed for the chat page.
+- No live backend verification pass was completed for first-byte timeout, total timeout, cancellation, and duplicate submission behavior.
+
+Conclusion:
+
+- Phase 2 **code-level consolidation, interaction-semantic unification, and static validation** are close to complete.
+- To formally close Phase 2, the next step should be one real deployment smoke run plus one recorded browser manual regression pass for chat.
 
 > MySQL example: `mysql+aiomysql://user:password@host:3306/db` (if you provide `mysql://`, it will be converted to `mysql+aiomysql://`).
 

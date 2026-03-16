@@ -130,7 +130,7 @@ docker compose up -d
 
 当前 Phase 1 收尾时，建议至少完成以下轻量检查：
 
-#### 自动 smoke（部署侧）
+#### Phase 2 自动 smoke（部署侧）
 
 - Cloudflare Workers 部署工作流已覆盖：`/health`、`/ready`、`/meta`、`/config`、`/config/sections`。
 - 若本轮修改涉及 Worker manifest / bridge runtime 字段，部署后额外抽查 `/v1/function/manifest` 是否可读。
@@ -180,6 +180,61 @@ docker compose up -d
 
 - Phase 1 的**代码级收敛与静态校验**已完成。
 - 若要正式宣告 Phase 1 完全关闭，建议下一步补一次真实部署 smoke 或浏览器手工回归结果记录。
+
+### Phase 2 Chat 完整化轻量 smoke / 手工回归记录
+
+当前 Phase 2 收尾时，建议至少完成以下轻量检查：
+
+#### 自动 smoke（部署侧）
+
+- Cloudflare Workers 部署后，抽查 `/health`、`/ready`、`/meta`、`/v1/function/manifest`。
+- 若 chat bridge 已启用 backend-forward，额外抽查 function chat 页面首屏 manifest 与 bridge mode 是否正常。
+
+#### 手工回归（chat 页）
+
+1. 成功路径
+
+- 非流式请求在 backend-forward-ready 下可正常返回内容。
+- 若当前保留流式路径，需确认首包到达、完成态、取消后状态恢复均正常。
+
+1. 失败 / 终态路径
+
+- 本地重复提交时，assistant / status bar / toast 会统一落地为 deferred 终态。
+- 取消请求时，assistant / status bar / toast 会统一落地为 cancelled 终态。
+- 首包超时、整体超时、普通失败时，assistant / status bar / toast 会统一落地为 failure 终态。
+
+1. 操作与可用性
+
+- 推荐重试路径按钮文案、图标、徽标、title、aria-label 与行内“推荐重试路径”文案一致。
+- 成功消息仅保留复制 / 编辑 / 反馈，且顺序为复制优先、编辑次之、反馈最后。
+- 失败消息动作区按“重试类 / 信息类 / 编辑类”分组，推荐路径按钮视觉更突出。
+
+#### Phase 2 本轮记录
+
+- 已完成：chat 的 duplicate / cancelled / failure 三类终态已统一到同一 terminal presentation model。
+- 已完成：toast、status bar、assistant 行内文案、重试按钮 title/aria/图标/徽标与推荐路径文案已大部分收敛到统一策略映射。
+- 已完成：成功/失败消息动作区的按钮排序、分组和视觉层级已完成一轮收敛。
+
+### Phase 2 实际回归结果摘要
+
+本轮已实际完成的回归与校验结果如下：
+
+- 已通过：`_public/static/function/js/chat.js` 静态错误检查为 0。
+- 已通过：`_public/static/function/css/chat.css` 静态错误检查为 0。
+- 已通过：`_public/static/i18n/locales/zh.json` 与 `en.json` 静态错误检查为 0。
+- 已确认：chat 的 deferred / cancelled / failure 三类终态现已共用统一展示对象结构与应用出口。
+- 已确认：chat 的推荐重试路径按钮、状态栏、行内提示、主要失败 toast 已基本收口到统一策略映射。
+
+本轮**未实际执行**的内容：
+
+- 未在真实部署环境执行一次新的 Phase 2 Workers / chat smoke。
+- 未在浏览器中完成一轮真实的 chat 页面点击式端到端回归。
+- 未对真实后端环境逐项验证首包超时、整体超时、取消、重复提交的在线表现。
+
+结论：
+
+- Phase 2 的**代码级收敛、交互语义统一与静态校验**已推进到接近收尾。
+- 若要正式宣告 Phase 2 关闭，建议下一步补一次真实部署 smoke 与一次浏览器 chat 手工回归记录。
 
 > MySQL 示例：`mysql+aiomysql://user:password@host:3306/db`（若填 `mysql://` 会自动转为 `mysql+aiomysql://`）
 
