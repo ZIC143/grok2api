@@ -1558,15 +1558,24 @@
 
   function applyChatFailurePresentation(assistantEntry, displayText, statusTextKey, toastText, sessionId) {
     assistantEntry.retryable = isRetryableChatFailure({ message: toastText });
+    const retryStrategyLabel = getChatRetryStrategyLabel(assistantEntry.retryStrategy);
+    const displayTextWithRetryHint = retryStrategyLabel
+      ? `${displayText}\n\n${t('chat.recommendedRetryPrefix', { action: retryStrategyLabel })}`
+      : displayText;
     if (assistantEntry.debugInfoText) {
-      assistantEntry.raw = `${displayText}\n\n${assistantEntry.debugInfoText}`;
+      assistantEntry.raw = `${displayTextWithRetryHint}\n\n${assistantEntry.debugInfoText}`;
+    } else {
+      assistantEntry.raw = displayTextWithRetryHint;
     }
-    updateMessage(assistantEntry, displayText, true);
-    setStatus('error', t(statusTextKey));
+    updateMessage(assistantEntry, displayTextWithRetryHint, true);
+    const statusText = retryStrategyLabel
+      ? `${t(statusTextKey)} · ${retryStrategyLabel}`
+      : t(statusTextKey);
+    setStatus('error', statusText);
     toast(toastText, 'error');
     if (!assistantEntry.committed) {
       assistantEntry.committed = true;
-      commitToSession(sessionId, displayText);
+      commitToSession(sessionId, displayTextWithRetryHint);
     }
   }
 
@@ -1581,6 +1590,44 @@
       timeoutClass = 'total-timeout';
     }
     return { requestId, idempotencyKey, timeoutClass };
+  }
+
+  function getChatRetryStrategy(error, debugInfo) {
+    const message = String(error && error.message ? error.message : '');
+    if (message.includes('duplicate_request_inflight') || message.includes('duplicate-chat-submission-in-flight')) {
+      return {
+        mode: 'delayed-retry',
+        delayMs: 1200,
+        toast: t('chat.retryStrategyDelayed'),
+      };
+    }
+    if ((debugInfo && debugInfo.timeoutClass) === 'first-byte-timeout') {
+      return {
+        mode: 'immediate-retry',
+        delayMs: 0,
+        toast: t('chat.retryStrategyImmediate'),
+      };
+    }
+    if ((debugInfo && debugInfo.timeoutClass) === 'total-timeout') {
+      return {
+        mode: 'confirm-retry',
+        delayMs: 0,
+        toast: t('chat.retryStrategyConfirm'),
+      };
+    }
+    return {
+      mode: 'normal-retry',
+      delayMs: 0,
+      toast: '',
+    };
+  }
+
+  function getChatRetryStrategyLabel(strategy) {
+    if (!strategy || !strategy.mode || strategy.mode === 'normal-retry') return '';
+    if (strategy.mode === 'delayed-retry') return t('chat.recommendedRetryDelayed');
+    if (strategy.mode === 'immediate-retry') return t('chat.recommendedRetryImmediate');
+    if (strategy.mode === 'confirm-retry') return t('chat.recommendedRetryConfirm');
+    return '';
   }
 
   function formatChatFailureDebugInfo(debugInfo) {
@@ -1784,9 +1831,9 @@
     actions.className = 'message-actions';
 
     if (entry.retryable) {
-      actions.appendChild(createActionButton(t('chat.retryNow'), t('chat.retryNowTitle'), () => retryLast()));
+      actions.appendChild(createActionButton(t('chat.retryNow'), t('chat.retryNowTitle'), () => retryLast(entry.retryStrategy || null)));
     }
-    const retryBtn = createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast());
+    const retryBtn = createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(entry.retryStrategy || null));
     const editBtn = createActionButton(t('chat.editAnswer'), t('chat.editAnswerTitle'), () => editMessageByRow(entry.row));
     const copyBtn = createActionButton(t('chat.copyAnswer'), t('chat.copyAnswerTitle'), () => copyToClipboard(entry.raw || ''));
     const copyDebugBtn = entry.debugInfoText
@@ -1828,7 +1875,7 @@
     }
   }
 
-  async function retryLast() {
+  async function retryLast(retryStrategy = null) {
     if (isSending) return;
     if (!messageHistory.length) return;
     let lastUserIndex = -1;
@@ -1841,6 +1888,17 @@
     if (lastUserIndex === -1) {
       toast(t('chat.noChatToRetry'), 'error');
       return;
+    }
+    const strategy = retryStrategy || { mode: 'normal-retry', delayMs: 0, toast: '' };
+    if (strategy.mode === 'confirm-retry') {
+      const confirmed = window.confirm(t('chat.retryConfirmPrompt'));
+      if (!confirmed) return;
+    }
+    if (strategy.toast) {
+      toast(strategy.toast, strategy.mode === 'delayed-retry' ? 'warning' : 'notice');
+    }
+    if (strategy.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, strategy.delayMs));
     }
     const historySlice = messageHistory.slice(0, lastUserIndex + 1);
     const retrySessionId = sessionsData.activeId;
@@ -1892,7 +1950,9 @@
       await handleStream(res, assistantEntry, retrySessionId);
       setStatus('connected', t('common.done'));
     } catch (e) {
-      assistantEntry.debugInfoText = formatChatFailureDebugInfo(getChatFailureDebugInfo(e, bridgeRes));
+      const debugInfo = getChatFailureDebugInfo(e, bridgeRes);
+      assistantEntry.retryStrategy = getChatRetryStrategy(e, debugInfo);
+      assistantEntry.debugInfoText = formatChatFailureDebugInfo(debugInfo);
       const failure = getChatFailurePresentation(e, bridgeRes);
       applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, retrySessionId);
     } finally {
@@ -2001,7 +2061,9 @@
           updateThinkSummary(assistantEntry, elapsed);
         }
       } else {
-        assistantEntry.debugInfoText = formatChatFailureDebugInfo(getChatFailureDebugInfo(e, bridgeRes));
+        const debugInfo = getChatFailureDebugInfo(e, bridgeRes);
+        assistantEntry.retryStrategy = getChatRetryStrategy(e, debugInfo);
+        assistantEntry.debugInfoText = formatChatFailureDebugInfo(debugInfo);
         const failure = getChatFailurePresentation(e, bridgeRes);
         applyChatFailurePresentation(assistantEntry, failure.inline, failure.statusKey, failure.toast, sendSessionId);
       }
