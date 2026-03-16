@@ -1630,6 +1630,37 @@
     return '';
   }
 
+  function getChatRetryActionCopy(strategy) {
+    if (!strategy || !strategy.mode || strategy.mode === 'normal-retry') {
+      return {
+        label: t('chat.retryNow'),
+        title: t('chat.retryNowTitle'),
+      };
+    }
+    if (strategy.mode === 'delayed-retry') {
+      return {
+        label: t('chat.retryActionDelayed'),
+        title: t('chat.retryActionDelayedTitle'),
+      };
+    }
+    if (strategy.mode === 'immediate-retry') {
+      return {
+        label: t('chat.retryActionImmediate'),
+        title: t('chat.retryActionImmediateTitle'),
+      };
+    }
+    if (strategy.mode === 'confirm-retry') {
+      return {
+        label: t('chat.retryActionConfirm'),
+        title: t('chat.retryActionConfirmTitle'),
+      };
+    }
+    return {
+      label: t('chat.retryNow'),
+      title: t('chat.retryNowTitle'),
+    };
+  }
+
   function formatChatFailureDebugInfo(debugInfo) {
     if (!debugInfo) return '';
     const lines = [];
@@ -1829,11 +1860,13 @@
     if (!entry || !entry.row) return;
     const actions = document.createElement('div');
     actions.className = 'message-actions';
+    const retryStrategy = entry.retryStrategy || null;
+    const retryActionCopy = getChatRetryActionCopy(retryStrategy);
+    const hasSpecificRetryStrategy = Boolean(retryStrategy && retryStrategy.mode && retryStrategy.mode !== 'normal-retry');
 
     if (entry.retryable) {
-      actions.appendChild(createActionButton(t('chat.retryNow'), t('chat.retryNowTitle'), () => retryLast(entry.retryStrategy || null)));
+      actions.appendChild(createActionButton(retryActionCopy.label, retryActionCopy.title, () => retryLast(retryStrategy)));
     }
-    const retryBtn = createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(entry.retryStrategy || null));
     const editBtn = createActionButton(t('chat.editAnswer'), t('chat.editAnswerTitle'), () => editMessageByRow(entry.row));
     const copyBtn = createActionButton(t('chat.copyAnswer'), t('chat.copyAnswerTitle'), () => copyToClipboard(entry.raw || ''));
     const copyDebugBtn = entry.debugInfoText
@@ -1843,7 +1876,9 @@
       window.open(feedbackUrl, '_blank', 'noopener');
     });
 
-    actions.appendChild(retryBtn);
+    if (entry.retryable && !hasSpecificRetryStrategy) {
+      actions.appendChild(createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(retryStrategy)));
+    }
     actions.appendChild(editBtn);
     actions.appendChild(copyBtn);
     if (copyDebugBtn) actions.appendChild(copyDebugBtn);
