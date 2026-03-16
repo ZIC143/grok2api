@@ -1546,6 +1546,7 @@
   }
 
   function handleChatAbort(assistantEntry, sessionId) {
+    assistantEntry.failed = true;
     assistantEntry.retryable = false;
     updateMessage(assistantEntry, t('chat.inlineCancelled'), true);
     setStatus('error', t('chat.requestCancelledStatus'));
@@ -1557,6 +1558,7 @@
   }
 
   function applyChatFailurePresentation(assistantEntry, displayText, statusTextKey, toastText, sessionId) {
+    assistantEntry.failed = true;
     assistantEntry.retryable = isRetryableChatFailure({ message: toastText });
     const retryStrategyLabel = getChatRetryStrategyLabel(assistantEntry.retryStrategy);
     const displayTextWithRetryHint = retryStrategyLabel
@@ -1841,6 +1843,7 @@
 
   async function handleNonStreamResponse(res, assistantEntry, targetSessionId) {
     const data = await res.json();
+    assistantEntry.failed = false;
     let content = data && data.choices && data.choices[0] && data.choices[0].message
       ? data.choices[0].message.content || ''
       : '';
@@ -1860,16 +1863,22 @@
     if (!entry || !entry.row) return;
     const actions = document.createElement('div');
     actions.className = 'message-actions';
+    const retryGroup = document.createElement('div');
+    retryGroup.className = 'message-action-group message-action-group-retry';
+    const infoGroup = document.createElement('div');
+    infoGroup.className = 'message-action-group message-action-group-info';
+    const editGroup = document.createElement('div');
+    editGroup.className = 'message-action-group message-action-group-edit';
     const retryStrategy = entry.retryStrategy || null;
     const retryActionCopy = getChatRetryActionCopy(retryStrategy);
     const hasSpecificRetryStrategy = Boolean(retryStrategy && retryStrategy.mode && retryStrategy.mode !== 'normal-retry');
 
     if (entry.retryable) {
-      actions.appendChild(createActionButton(retryActionCopy.label, retryActionCopy.title, () => retryLast(retryStrategy)));
+      retryGroup.appendChild(createActionButton(retryActionCopy.label, retryActionCopy.title, () => retryLast(retryStrategy)));
     }
     const editBtn = createActionButton(t('chat.editAnswer'), t('chat.editAnswerTitle'), () => editMessageByRow(entry.row));
     const copyBtn = createActionButton(t('chat.copyAnswer'), t('chat.copyAnswerTitle'), () => copyToClipboard(entry.raw || ''));
-    const copyDebugBtn = entry.debugInfoText
+    const copyDebugBtn = entry.failed && entry.debugInfoText
       ? createActionButton(t('chat.copyDebugInfo'), t('chat.copyDebugInfoTitle'), () => copyToClipboard(entry.debugInfoText))
       : null;
     const feedbackBtn = createActionButton(t('chat.feedback'), t('chat.feedbackTitle'), () => {
@@ -1877,12 +1886,16 @@
     });
 
     if (entry.retryable && !hasSpecificRetryStrategy) {
-      actions.appendChild(createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(retryStrategy)));
+      retryGroup.appendChild(createActionButton(t('common.retry'), t('chat.retryTitle'), () => retryLast(retryStrategy)));
     }
-    actions.appendChild(editBtn);
-    actions.appendChild(copyBtn);
-    if (copyDebugBtn) actions.appendChild(copyDebugBtn);
-    actions.appendChild(feedbackBtn);
+    infoGroup.appendChild(copyBtn);
+    if (copyDebugBtn) infoGroup.appendChild(copyDebugBtn);
+    infoGroup.appendChild(feedbackBtn);
+    editGroup.appendChild(editBtn);
+
+    if (retryGroup.childElementCount) actions.appendChild(retryGroup);
+    if (infoGroup.childElementCount) actions.appendChild(infoGroup);
+    if (editGroup.childElementCount) actions.appendChild(editGroup);
     entry.row.appendChild(actions);
   }
 
@@ -2131,6 +2144,7 @@
 
   async function handleStream(res, assistantEntry, targetSessionId) {
     activeStreamInfo = { sessionId: targetSessionId, entry: assistantEntry };
+    assistantEntry.failed = false;
     const reader = res.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';

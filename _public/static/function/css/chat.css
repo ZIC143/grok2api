@@ -117,6 +117,29 @@ body {
   margin-left: 2px;
 }
 
+.message-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.message-action-group + .message-action-group {
+  position: relative;
+  margin-left: 6px;
+  padding-left: 10px;
+}
+
+.message-action-group + .message-action-group::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: rgba(17, 17, 17, 0.12);
+}
+
 .action-btn {
   border: none;
   background: transparent;
