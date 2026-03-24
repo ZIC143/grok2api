@@ -192,12 +192,15 @@ curl http://localhost:8000/v1/chat/completions \
 - `image_url/input_audio/file` only supports URL or Data URI (`data:<mime>;base64,...`); raw base64 will be rejected.
 - `reasoning_effort`: `none` disables thinking output; any other value enables it.
 - Tool calling is **prompt-based + client-executed**: the model emits `<tool_call>{...}</tool_call>` and the server parses it into `tool_calls`; tools are not executed server-side.
+- Image generation/editing has been adapted to Grok's latest `cardAttachment` response format and auto-routing behavior. No client-side request changes are required for either `/v1/chat/completions` or the image-specific endpoints.
 - `grok-imagine-1.0-fast` works similarly to the imagine waterfall stream, and can be called directly via `/v1/chat/completions`. Its `n/size/response_format` are globally controlled by the server's `[imagine_fast]` config.
 - `grok-imagine-1.0-fast` streaming output in `/chat/completions` only returns the final image, hiding intermediate preview images.
 - `grok-imagine-1.0-fast` streaming URL output will retain the original image filename (without appending `-final`).
-- `grok-imagine-1.0-edit` requires an image; if multiple are provided, the **last 3** images and last text are used.
+- Image generation automatically expands token retries when the image path hits temporary `429` bursts, improving success rates.
+- `grok-imagine-1.0-edit` requires an image. In addition to `image_url` blocks, you can also pass reference images via Markdown image syntax like `![alt](...)` inside text content. The server extracts and deduplicates them automatically; if multiple images are provided, the **last 3** images and last text are used.
 - `grok-imagine-1.0-video` supports text-to-video and multi-image reference video: pass up to `7` `image_url` blocks and use placeholders like `@图1`, `@图2` in the prompt; the server will replace them with the corresponding `assetId` values.
-- `@图N` placeholders map to `image_url` order; referencing a missing image index returns an error.
+- Video prompts and reference images are extracted only from the **last `user` message**. Put the final prompt and all reference images in the same user turn to keep placeholder mapping stable.
+- `@图N` placeholders map to the `image_url` order in the last `user` message; referencing a missing image index returns an error.
 - Any other parameters will be discarded and ignored.
 
 <br>
@@ -284,6 +287,8 @@ curl http://localhost:8000/v1/images/generations \
 
 **Notes**:
 
+- Grok's latest `cardAttachment` image output format is already supported; request parameters and response schema stay unchanged.
+- When the image pipeline hits temporary `429` bursts, the server widens token retries automatically to reduce failed generations.
 - `quality` and `style` are OpenAI compatibility placeholders and are not customizable yet.
 - If more than 3 images are provided, only the **last 3** are used.
 
@@ -325,6 +330,7 @@ curl http://localhost:8000/v1/images/edits \
 
 **Notes**:
 
+- Grok's latest `cardAttachment` image-edit output format is already supported; request parameters and response schema stay unchanged.
 - `quality` and `style` are OpenAI compatibility placeholders and are not customizable yet.
 
 <br>
@@ -431,6 +437,11 @@ Config file: `data/config.toml`
 |  | `save_delay_ms` | Save delay | Merge write delay (ms). | `500` |
 |  | `usage_flush_interval_sec` | Usage flush interval | Minimum interval to flush usage fields to DB (seconds). | `5` |
 |  | `reload_interval_sec` | Reload interval | Multi-worker token reload interval (seconds). | `30` |
+| **log** | `max_file_size_mb` | Max file size | Per-log-file size limit in MB; values `0` or below disable size-based rotation. | `100` |
+|  | `max_files` | Retained files | Maximum number of log files to retain; values `0` or below remove the limit. | `7` |
+|  | `log_health_requests` | Log health checks | Whether to log `/health` requests. | `false` |
+|  | `log_all_requests` | Log all requests | When enabled, logs every request; otherwise only slow, abnormal, and error requests are logged. | `false` |
+|  | `request_slow_ms` | Slow request threshold | Requests slower than this value in milliseconds will be logged. | `3000` |
 | **cache** | `enable_auto_clean` | Auto clean | Enable cache auto cleanup. | `true` |
 |  | `limit_mb` | Size limit | Cleanup threshold (MB). | `512` |
 | **chat** | `concurrent` | Concurrency | Reverse chat concurrency limit. | `50` |

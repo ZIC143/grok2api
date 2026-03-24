@@ -192,13 +192,16 @@ curl http://localhost:8000/v1/chat/completions \
 - `image_url/input_audio/file` 仅支持 URL 或 Data URI（`data:<mime>;base64,...`），裸 base64 会报错。
 - `reasoning_effort`：`none` 表示不输出思考，其他值都会输出思考内容。
 - 工具调用为**提示词模拟 + 客户端执行回填**：模型通过 `<tool_call>{...}</tool_call>` 输出调用请求，服务端解析为 `tool_calls`；不执行工具。
+- 图像生成/编辑链路已适配 Grok 最新 `cardAttachment` 返回格式与自动路由模式；无论通过 `/v1/chat/completions` 还是图片专用接口调用，客户端请求参数均无需额外调整。
 - `grok-imagine-1.0-fast` 与瀑布流 imagine 生成链路一致，可直接通过 `/v1/chat/completions` 调用；其 `n/size/response_format` 由服务端 `[imagine_fast]` 统一控制。
 - `grok-imagine-1.0-fast` 在 `/v1/chat/completions` 的流式输出仅返回最终成图，不返回中间预览图。
 - `grok-imagine-1.0-fast` 流式 URL 出图会保持原始图片名（不追加 `-final` 后缀）。
+- 图像生成遇到图片链路短暂 `429` 时，会自动扩大 token 重试范围以提高成功率。
 - 当图片疑似被审查拦截导致无最终图时，若开启 `image.blocked_parallel_enabled`，服务端会按 `image.blocked_parallel_attempts` 自动并行补偿生成，并优先使用不同 token；若仍无满足 `image.final_min_bytes` 的最终图则返回失败。
-- `grok-imagine-1.0-edit` 必须提供图片，多图默认取**最后 3 张**与最后一个文本。
+- `grok-imagine-1.0-edit` 必须提供图片；除 `image_url` 内容块外，也支持在文本内容中使用 Markdown 图片语法 `![alt](...)` 传入参考图。服务端会自动提取并去重，多图默认取**最后 3 张**与最后一个文本。
 - `grok-imagine-1.0-video` 支持文生视频与多图参考视频：可通过多个 `image_url` 传最多 `7` 张参考图，并在文本中使用 `@图1`、`@图2` 这类占位符；服务端会自动替换为对应 `assetId`。
-- `@图N` 与 `image_url` 的顺序一一对应；若引用了不存在的图片序号，会直接报错。
+- 视频参考图与提示词仅解析**最后一条 `user` 消息**中的文本和 `image_url`；建议将最终提示词与全部参考图放在同一条用户消息中。
+- `@图N` 与最后一条 `user` 消息中的 `image_url` 顺序一一对应；若引用了不存在的图片序号，会直接报错。
 - 除上述外的其他参数将自动丢弃并忽略。
 
 <br>
@@ -285,6 +288,8 @@ curl http://localhost:8000/v1/images/generations \
 
 **注意事项**：
 
+- 已适配 Grok 最新 `cardAttachment` 出图格式，接口参数与响应结构保持不变，无需额外迁移。
+- 当图片链路出现短暂 `429` 时，服务端会自动扩大 token 重试范围，降低生成失败概率。
 - `quality`、`style` 参数为 OpenAI 兼容保留，当前版本暂不支持自定义。
 - 多图编辑若传入超过 3 张，仅取**最后 3 张**作为参考。
 
@@ -326,6 +331,7 @@ curl http://localhost:8000/v1/images/edits \
 
 **注意事项**：
 
+- 已适配 Grok 最新 `cardAttachment` 编辑出图格式，接口参数与响应结构保持不变。
 - `quality`、`style` 参数为 OpenAI 兼容保留，当前版本暂不支持自定义。
 
 <br>
@@ -432,6 +438,11 @@ curl http://localhost:8000/v1/videos \
 |  | `save_delay_ms` | 保存延迟 | Token 变更合并写入的延迟（毫秒）。 | `500` |
 |  | `usage_flush_interval_sec` | 用量落库间隔 | 用量类字段写入数据库的最小间隔（秒）。 | `5` |
 |  | `reload_interval_sec` | 同步间隔 | 多 worker 场景下 Token 状态刷新间隔（秒）。 | `30` |
+| **log** | `max_file_size_mb` | 单文件上限 | 单个日志文件大小上限（MB），超过后自动轮转；设置为 `0` 或负数表示不按大小轮转。 | `100` |
+|  | `max_files` | 保留文件数 | 最多保留多少个日志文件；设置为 `0` 或负数表示不限制数量。 | `7` |
+|  | `log_health_requests` | 记录健康检查 | 是否记录 `/health` 健康检查请求。 | `false` |
+|  | `log_all_requests` | 记录全部请求 | 开启后记录所有请求；关闭时仅记录慢请求、异常请求和错误请求。 | `false` |
+|  | `request_slow_ms` | 慢请求阈值 | 请求耗时超过该值（毫秒）时会写入日志。 | `3000` |
 | **cache** | `enable_auto_clean` | 自动清理 | 是否启用缓存自动清理，开启后按上限自动回收。 | `true` |
 |  | `limit_mb` | 清理阈值 | 缓存大小阈值（MB），超过阈值会触发清理。 | `512` |
 | **chat** | `concurrent` | 并发上限 | Reverse 接口并发上限。 | `50` |
